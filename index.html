@@ -337,6 +337,36 @@
             transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.05s ease;
         }
 
+        .field-with-search {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .field-with-search input {
+            width: 100%;
+        }
+
+        .field-search-dot {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: #ef4444;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9), 0 0 8px rgba(248, 113, 113, 0.9);
+            animation: pulse-dot 1.4s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.25); opacity: 0.7; }
+        }
+
         input::placeholder {
             color: #6b7280;
         }
@@ -626,6 +656,18 @@
         tr:nth-child(odd) { background: rgba(15, 23, 42, 0.98); }
         tbody tr + tr td { border-top-width: 0; }
 
+        .group-row td {
+            background: radial-gradient(circle at left, rgba(56, 189, 248, 0.35), rgba(15, 23, 42, 0.98));
+            color: #e5edff;
+            font-weight: 700;
+            border-top: 2px solid rgba(56, 189, 248, 0.9);
+        }
+
+        .registered-row td {
+            background: radial-gradient(circle at left, rgba(34, 197, 94, 0.22), rgba(15, 23, 42, 0.98));
+            border-color: rgba(34, 197, 94, 0.7);
+        }
+
         /* Arşiv liste kutuları */
         .archive-list {
             display: flex;
@@ -861,15 +903,24 @@
             <div class="row">
                 <div class="col">
                     <label>CİNSİ</label>
-                    <input type="text" id="cinsi" placeholder="Cinsi">
+                    <div class="field-with-search">
+                        <input type="text" id="cinsi" placeholder="Cinsi" list="dlCinsi">
+                        <button type="button" class="field-search-dot" onclick="alanAramaAc('cinsi')" title="Cinsi alanında arama yap"></button>
+                    </div>
                 </div>
                 <div class="col">
                     <label>MARKA</label>
-                    <input type="text" id="marka" placeholder="Marka">
+                    <div class="field-with-search">
+                        <input type="text" id="marka" placeholder="Marka" list="dlMarka">
+                        <button type="button" class="field-search-dot" onclick="alanAramaAc('marka')" title="Marka alanında arama yap"></button>
+                    </div>
                 </div>
                 <div class="col">
                     <label>MODEL YILI</label>
-                    <input type="text" id="modelYili" placeholder="Örn. 2020">
+                    <div class="field-with-search">
+                        <input type="text" id="modelYili" placeholder="Örn. 2020" list="dlModelYili">
+                        <button type="button" class="field-search-dot" onclick="alanAramaAc('modelYili')" title="Model yılı alanında arama yap"></button>
+                    </div>
                 </div>
             </div>
             <div class="row">
@@ -879,7 +930,10 @@
                 </div>
                 <div class="col">
                     <label>RESMİ/SİVİL</label>
-                    <input type="text" id="resmiSivil" placeholder="Resmi/Sivil">
+                    <div class="field-with-search">
+                        <input type="text" id="resmiSivil" placeholder="Resmi/Sivil" list="dlResmiSivil">
+                        <button type="button" class="field-search-dot" onclick="alanAramaAc('resmiSivil')" title="Resmi/Sivil alanında arama yap"></button>
+                    </div>
                 </div>
                 <div class="col">
                     <label>CİHAZ TÜRÜ (NTP TÜRÜ – tablolardan otomatik veya elle)</label>
@@ -1013,6 +1067,11 @@
                         <div id="arsivAlani" style="max-height:160px; overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;"></div>
                     </div>
                 </div>
+                <div class="row" style="justify-content:flex-end; margin-top:4px;">
+                    <div class="col" style="min-width:0; align-items:flex-end;">
+                        <button type="button" class="btn btn-light" onclick="arsiviSil()" title="Arşivdeki tüm kayıtları siler">Arşivi temizle</button>
+                    </div>
+                </div>
             </div>
 
             <div>
@@ -1038,6 +1097,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Cinsi / Marka / Model Yılı / Resmi-Sivil için datalist'ler -->
+    <datalist id="dlCinsi"></datalist>
+    <datalist id="dlMarka"></datalist>
+    <datalist id="dlModelYili"></datalist>
+    <datalist id="dlResmiSivil"></datalist>
 
     <p class="helper" style="margin-top:6px;font-size:10px;color:#9ca3af">Nesne Takip v2 — Tek CİHAZ TÜRÜ Excel, plaka 0282/0282A arama, sabit yükleme. Güncel değilse Ctrl+F5 ile yenileyin.</p>
         </div>
@@ -1071,6 +1136,150 @@
         return s;
     }
 
+    // Cinsi / Marka / Model Yılı / Resmi-Sivil alanlarından arama
+    function alanAramaAc(fieldId) {
+        const idMap = {
+            cinsi: 'CİNSİ',
+            marka: 'MARKA',
+            modelYili: 'MODEL YILI',
+            resmiSivil: 'RESMİ/SİVİL'
+        };
+        const input = document.getElementById(fieldId);
+        if (!input) return;
+        const deger = (input.value || '').trim();
+        if (!deger) {
+            alert(idMap[fieldId] + ' alanına önce bir değer yazın.');
+            return;
+        }
+        const aranacak = deger.toLocaleUpperCase('tr-TR');
+        const kayitlar = [];
+
+        Object.keys(PLAKA_VERI).forEach(function (plakaKey) {
+            const v = PLAKA_VERI[plakaKey] || {};
+            let alanDeger = '';
+            if (fieldId === 'cinsi') alanDeger = v.cinsi || '';
+            else if (fieldId === 'marka') alanDeger = v.marka || '';
+            else if (fieldId === 'modelYili') alanDeger = v.modelYili || '';
+            else if (fieldId === 'resmiSivil') alanDeger = v.resmiSivil || '';
+            const alanNorm = String(alanDeger).toLocaleUpperCase('tr-TR');
+            if (!alanNorm || alanNorm.indexOf(aranacak) === -1) return;
+            const cihazTuru = ntpBul(plakaKey) || '';
+            kayitlar.push({
+                plaka: plakaKey,
+                kullanildigiYer: v.kullanildigiYer || '',
+                cinsi: v.cinsi || '',
+                marka: v.marka || '',
+                modelYili: v.modelYili || '',
+                durumu: v.durumu || '',
+                resmiSivil: v.resmiSivil || '',
+                cihazTuru: cihazTuru
+            });
+        });
+
+        const baslikEl = document.getElementById('birimAramaBaslik');
+        const sonucEl = document.getElementById('birimAramaSonuc');
+        if (!sonucEl) return;
+
+        if (baslikEl) {
+            const upperVal = deger.toLocaleUpperCase('tr-TR');
+            // Cihaz türü kırılımı
+            const turSayac = {};
+            kayitlar.forEach(function (k) {
+                const t = String(k.cihazTuru || '').trim();
+                if (!t) return;
+                const key = t.toLocaleUpperCase('tr-TR');
+                turSayac[key] = (turSayac[key] || 0) + 1;
+            });
+            const turParca = Object.keys(turSayac).map(function (t) {
+                return turSayac[t] + ' ' + t;
+            }).join(', ');
+
+            let text = idMap[fieldId] + ' = "' + upperVal + '" İÇİN BULUNAN CİHAZ SAYISI: ' + kayitlar.length;
+            if (turParca) {
+                text += ' (' + turParca + ')';
+            }
+            baslikEl.textContent = text;
+        }
+
+        if (!kayitlar.length) {
+            sonucEl.innerHTML = '<p class="helper">Bu kriter için kayıtlı cihaz bulunamadı.</p>';
+        } else {
+            const oncelik = function (tur) {
+                const t = String(tur || '').toLocaleUpperCase('tr-TR');
+                if (t.indexOf('ATOS') !== -1) return 0;
+                if (t.indexOf('ASELSAN') !== -1) return 1;
+                if (t.indexOf('DİĞER') !== -1 || t.indexOf('DIGER') !== -1) return 2;
+                return 3;
+            };
+            kayitlar.sort(function (a, b) {
+                const oa = oncelik(a.cihazTuru);
+                const ob = oncelik(b.cihazTuru);
+                if (oa !== ob) return oa - ob;
+                const ba = String(a.kullanildigiYer || '').toLocaleUpperCase('tr-TR');
+                const bb = String(b.kullanildigiYer || '').toLocaleUpperCase('tr-TR');
+                if (ba !== bb) return ba.localeCompare(bb);
+                const ca = String(a.cihazTuru || '').toLocaleUpperCase('tr-TR');
+                const cb = String(b.cihazTuru || '').toLocaleUpperCase('tr-TR');
+                return ca.localeCompare(cb);
+            });
+
+            let html = '<table><thead><tr><th>BİRİM</th><th>PLAKA</th><th>CİNSİ</th><th>MARKA</th><th>MODEL</th><th>DURUM</th><th>RESMİ/SİVİL</th><th>CİHAZ TÜRÜ</th></tr></thead><tbody>';
+            let sonBirim = null;
+            kayitlar.forEach(function (k) {
+                const birim = k.kullanildigiYer || '';
+                const birimKey = String(birim).toLocaleUpperCase('tr-TR');
+                if (sonBirim === null || birimKey !== sonBirim) {
+                    html += '<tr class="group-row"><td colspan="8">' + (birim || '(BİRİM BİLGİSİ YOK)') + '</td></tr>';
+                    sonBirim = birimKey;
+                }
+                const kayitli = plakaKayitliMi(k.plaka || '');
+                html += '<tr' + (kayitli ? ' class="registered-row"' : '') + '>' +
+                    '<td>' + (k.kullanildigiYer || '') + '</td>' +
+                    '<td>' + (k.plaka || '') + '</td>' +
+                    '<td>' + (k.cinsi || '') + '</td>' +
+                    '<td>' + (k.marka || '') + '</td>' +
+                    '<td>' + (k.modelYili || '') + '</td>' +
+                    '<td>' + (k.durumu || '') + '</td>' +
+                    '<td>' + (k.resmiSivil || '') + '</td>' +
+                    '<td>' + (k.cihazTuru || '') + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            sonucEl.innerHTML = html;
+        }
+
+        const overlay = document.getElementById('birimAramaOverlay');
+        if (overlay) overlay.classList.add('acik');
+    }
+
+    // ANA Excel'den gelen Cinsi / Marka / Model Yılı / Resmi-Sivil alanlarını datalist'e aktar
+    function guncelleDatalistler() {
+        const setCinsi = new Set();
+        const setMarka = new Set();
+        const setModel = new Set();
+        const setResmi = new Set();
+        Object.keys(PLAKA_VERI).forEach(function (k) {
+            const v = PLAKA_VERI[k] || {};
+            // Cinsi: sadece CİHAZ TÜRÜ tablosunda (PLAKA_NTP) karşılığı olan plakalar için al
+            if (v.cinsi && ntpBul(k)) setCinsi.add(String(v.cinsi).trim());
+            if (v.marka) setMarka.add(String(v.marka).trim());
+            if (v.modelYili) setModel.add(String(v.modelYili).trim());
+            if (v.resmiSivil) setResmi.add(String(v.resmiSivil).trim());
+        });
+        function toOptions(set) {
+            return Array.from(set).sort().map(function (val) {
+                return '<option value="' + val.replace(/"/g, '&quot;') + '"></option>';
+            }).join('');
+        }
+        const dlC = document.getElementById('dlCinsi');
+        const dlM = document.getElementById('dlMarka');
+        const dlY = document.getElementById('dlModelYili');
+        const dlR = document.getElementById('dlResmiSivil');
+        if (dlC) dlC.innerHTML = toOptions(setCinsi);
+        if (dlM) dlM.innerHTML = toOptions(setMarka);
+        if (dlY) dlY.innerHTML = toOptions(setModel);
+        if (dlR) dlR.innerHTML = toOptions(setResmi);
+    }
     // Sayısal plakalar için tek biçim: 282 ve 0282 -> "0282" (4 hane)
     function plakaCanonicalKey(str) {
         const norm = plakaNormalize(str);
@@ -1205,6 +1414,7 @@
                     listeInput.disabled = true;
                     listeInput.title = 'Ana Excel yüklü (sıfırlamadan değiştiremezsiniz)';
                 }
+                guncelleDatalistler();
             } catch (err) { alert('Excel okunamadı: ' + (err.message || err)); }
             fileInput.value = '';
         };
@@ -1364,6 +1574,19 @@
         return '';
     }
 
+    function plakaKayitliMi(plakaKeyHam) {
+        if (!plakaKeyHam) return false;
+        const hedef = plakaNormalize(plakaKeyHam);
+        if (!hedef) return false;
+        for (let i = 0; i < KAYITLAR.length; i++) {
+            if (plakaNormalize(KAYITLAR[i].plaka) === hedef) return true;
+        }
+        for (let j = 0; j < ARSIV_KAYITLAR.length; j++) {
+            if (plakaNormalize(ARSIV_KAYITLAR[j].plaka) === hedef) return true;
+        }
+        return false;
+    }
+
     function plakaDegisti() {
         const key = plakaNormalize(getPlakaTam());
         document.getElementById('cihazTuru').value = ntpBul(key);
@@ -1406,6 +1629,8 @@
         const imeiNo = document.getElementById('imeiNo').value.trim();
         if (!plaka) { alert('PLAKA NO giriniz.'); return; }
         if (!getSimNoRaw() || getSimNoRaw().length < 10) { alert('SİM NO zorunludur (10 hane: 5xx xxx xx xx).'); return; }
+        if (!imeiNo) { alert('IMEI NO alanını boş bırakmayın.'); return; }
+        if (!ekipKodu) { alert('EKİP KODU alanını boş bırakmayın.'); return; }
         const kayit = { sNo: siraNo, plaka, kullanildigiYer, cinsi, marka, modelYili, durumu, resmiSivil, cihazTuru, ekipKodu, simNo, imeiNo };
         KAYITLAR.push(kayit);
         localStorage.setItem('nesne_takip_kayitlar', JSON.stringify(KAYITLAR));
@@ -1507,6 +1732,21 @@
         localStorage.setItem('nesne_takip_kayitlar', JSON.stringify(KAYITLAR));
         localStorage.setItem('nesne_takip_arsiv', JSON.stringify(ARSIV_KAYITLAR));
         listeyiCiz();
+        arsiviCiz();
+        excelGonderButonGuncelle();
+        guncelleSayac();
+    }
+
+    function arsiviSil() {
+        if (!ARSIV_KAYITLAR.length) {
+            alert('Silinecek arşiv kaydı yok.');
+            return;
+        }
+        if (!confirm('Arşivdeki TÜM kayıtları silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+            return;
+        }
+        ARSIV_KAYITLAR = [];
+        localStorage.setItem('nesne_takip_arsiv', JSON.stringify(ARSIV_KAYITLAR));
         arsiviCiz();
         excelGonderButonGuncelle();
         guncelleSayac();
@@ -1640,10 +1880,40 @@
         if (!kayitlar.length) {
             sonucEl.innerHTML = '<p class="helper">Bu birim veya cihaz türü için kayıtlı cihaz bulunamadı.</p>';
         } else {
+            // Cihaz türüne göre öncelik: ATOSİS, ASELSAN, DİĞER, sonra diğerleri
+            const oncelik = function (tur) {
+                const t = String(tur || '').toLocaleUpperCase('tr-TR');
+                if (t.indexOf('ATOS') !== -1) return 0;
+                if (t.indexOf('ASELSAN') !== -1) return 1;
+                if (t.indexOf('DİĞER') !== -1 || t.indexOf('DIGER') !== -1) return 2;
+                return 3;
+            };
+            // Önce birime göre grupla, her grup içinde cihaz türü önceliğine göre sırala
+            kayitlar.sort(function (a, b) {
+                const ba = String(a.kullanildigiYer || '').toLocaleUpperCase('tr-TR');
+                const bb = String(b.kullanildigiYer || '').toLocaleUpperCase('tr-TR');
+                if (ba !== bb) return ba.localeCompare(bb);
+                const oa = oncelik(a.cihazTuru);
+                const ob = oncelik(b.cihazTuru);
+                if (oa !== ob) return oa - ob;
+                const ca = String(a.cihazTuru || '').toLocaleUpperCase('tr-TR');
+                const cb = String(b.cihazTuru || '').toLocaleUpperCase('tr-TR');
+                return ca.localeCompare(cb);
+            });
+
             let html = '<table><thead><tr><th>BİRİM</th><th>PLAKA</th><th>CİNSİ</th><th>MARKA</th><th>MODEL</th><th>DURUM</th><th>RESMİ/SİVİL</th><th>CİHAZ TÜRÜ</th></tr></thead><tbody>';
+            let sonBirim = null;
             kayitlar.forEach(function(k) {
-                html += '<tr>' +
-                    '<td>' + (k.kullanildigiYer || '') + '</td>' +
+                const birim = k.kullanildigiYer || '';
+                const birimKey = String(birim).toLocaleUpperCase('tr-TR');
+                if (sonBirim === null || birimKey !== sonBirim) {
+                    // Gruplar arasında belirgin ayraç satırı
+                    html += '<tr class="group-row"><td colspan="8">' + (birim || '(BİRİM BİLGİSİ YOK)') + '</td></tr>';
+                    sonBirim = birimKey;
+                }
+                const kayitli = plakaKayitliMi(k.plaka || '');
+                html += '<tr' + (kayitli ? ' class="registered-row"' : '') + '>' +
+                    '<td>' + (birim || '') + '</td>' +
                     '<td>' + (k.plaka || '') + '</td>' +
                     '<td>' + (k.cinsi || '') + '</td>' +
                     '<td>' + (k.marka || '') + '</td>' +
@@ -1658,6 +1928,8 @@
         }
         const overlay = document.getElementById('birimAramaOverlay');
         if (overlay) overlay.classList.add('acik');
+        // Arama kutusunu temizle
+        input.value = '';
     }
 
     function birimAramaKapat() {
@@ -1739,13 +2011,19 @@
         const dosyaAdi = 'nesne_takip_whatsapp_' + new Date().toISOString().slice(0,10) + (testModu ? '_TEST' : '') + '.xlsx';
         XLSX.writeFile(wb, dosyaAdi);
         window.open('https://web.whatsapp.com', '_blank');
+        const mesajMetni = 'KIYMETLİ BT PERSONELİ.\n\nAŞAĞIDA GÖNDERMİŞ OLDUĞUM LİSTEYİ N.T.P. PROJESİNE EKLEMENİZİ ÖNEMLE RİCA EDERİM.';
+        const mesajParam = encodeURIComponent(mesajMetni);
         const numaralar = getYoneticiNumaralari();
         numaralar.forEach(function(num) {
             var n = num.replace(/^0+/, '');
             if (n.length === 10 && n[0] === '5') n = '90' + n;
             else if (n.length === 11 && n[0] === '0') n = '90' + n.slice(1);
             else if (n.length < 12) n = '90' + n;
-            if (n.length >= 12) setTimeout(function() { window.open('https://wa.me/' + n, '_blank'); }, 400 + numaralar.indexOf(num) * 300);
+            if (n.length >= 12) {
+                setTimeout(function() {
+                    window.open('https://wa.me/' + n + '?text=' + mesajParam, '_blank');
+                }, 400 + numaralar.indexOf(num) * 300);
+            }
         });
     }
 
@@ -1835,7 +2113,15 @@
         listeyiCiz();
         arsiviCiz();
         guncelleSayac();
+        guncelleDatalistler();
     };
+
+    // Safari / mobilde kolay yenileme: Boş bir alana çift tıklayınca sayfayı yenile
+    document.addEventListener('dblclick', function (e) {
+        const tag = (e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '');
+        if (['input', 'button', 'textarea', 'select', 'label', 'a'].indexOf(tag) !== -1) return;
+        location.reload();
+    });
 </script>
 </body>
 </html>
