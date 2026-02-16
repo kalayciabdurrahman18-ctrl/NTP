@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1e3a8a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -544,6 +544,85 @@
             h1 { font-size: 0.95rem; }
         }
 
+        /* 12.9 inç tablet (iPad Pro vb.) — ekrana tam sığsın */
+        @media (min-width: 1024px) {
+            html, body {
+                height: 100%;
+                min-height: 100vh;
+                min-height: 100dvh;
+                padding: 0;
+                align-items: stretch;
+                overflow: hidden;
+            }
+            .app-shell {
+                max-width: none;
+                width: 100%;
+                max-height: none;
+                height: 100%;
+                min-height: 100vh;
+                min-height: 100dvh;
+                border-radius: 0;
+                box-shadow: none;
+                border: none;
+            }
+            .app-main {
+                flex: 1;
+                min-height: 0;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 16px 20px 12px;
+            }
+            .container {
+                max-height: 100%;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .container .section:first-of-type {
+                flex: 0 0 auto;
+            }
+            /* Yönetici paneli — 12.9 inç tablette ana ekran gibi tam sığsın */
+            #yoneticiPaneliOverlay {
+                padding: 0;
+                align-items: stretch;
+                justify-content: stretch;
+            }
+            #yoneticiPaneliOverlay .modal-panel {
+                max-width: none;
+                width: 100%;
+                height: 100%;
+                min-height: 100vh;
+                min-height: 100dvh;
+                max-height: none;
+                border-radius: 0;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            #yoneticiPaneliOverlay .modal-panel .modal-header {
+                flex: 0 0 auto;
+            }
+            #yoneticiPaneliOverlay .modal-panel .section,
+            #yoneticiPaneliOverlay .modal-panel .helper,
+            #yoneticiPaneliOverlay .modal-panel > div:not(.modal-header) {
+                flex: 0 0 auto;
+            }
+            #yoneticiPaneliOverlay .modal-panel > div:last-of-type {
+                flex: 0 0 auto;
+                margin-top: auto;
+            }
+            #yoneticiPaneliOverlay .modal-panel .section {
+                overflow-y: visible;
+            }
+            #yoneticiPaneliOverlay .modal-panel {
+                overflow-y: auto;
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
         /* Alt gezinme çubuğu (Android navigation) */
         .bottom-nav {
             height: 40px;
@@ -789,6 +868,7 @@
             <div>
                 <button type="button" class="btn btn-primary" onclick="yoneticiNumaralariKaydet(); hekListesiKaydet(); yoneticiPaneliKapat();">Kaydet</button>
                 <button type="button" class="btn btn-light" onclick="yoneticiPaneliKapat()">Kapat</button>
+                <button type="button" class="btn btn-light" style="margin-left:8px; border-color:rgba(220,38,38,0.6); color:#fca5a5;" onclick="yoneticiVerileriSifirla()" title="Tüm listeler, kayıtlar ve ayarlar silinir. Şifre istenir.">Verileri sıfırla</button>
             </div>
         </div>
     </div>
@@ -796,7 +876,10 @@
     <!-- Birim arama sonuç penceresi -->
     <div id="birimAramaOverlay" class="modal-overlay" onclick="if(event.target===this) birimAramaKapat()">
         <div class="modal-panel">
-            <h3>Birimdeki Cihazlar</h3>
+            <div class="modal-header">
+                <h3>Birimdeki Cihazlar</h3>
+                <button type="button" class="modal-close" onclick="birimAramaKapat()" aria-label="Kapat" title="Kapat">✕</button>
+            </div>
             <p id="birimAramaBaslik" class="helper"></p>
             <div id="birimAramaSonuc" style="max-height:320px; overflow:auto; -webkit-overflow-scrolling:touch;"></div>
             <div style="margin-top:10px; text-align:right;">
@@ -1328,6 +1411,52 @@
         const overlay = document.getElementById('yoneticiPaneliOverlay');
         if (overlay) overlay.classList.remove('acik');
     }
+
+    var YONETICI_SIFRE = '505700';
+    function yoneticiVerileriSifirla() {
+        var sifre = prompt('Tüm verileri sıfırlamak için şifreyi girin:');
+        if (sifre === null) return;
+        if (sifre !== YONETICI_SIFRE) {
+            alert('Şifre yanlış. Veriler sıfırlanmadı.');
+            return;
+        }
+        var keys = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('nesne_takip_') === 0) keys.push(k);
+        }
+        keys.forEach(function(k) { localStorage.removeItem(k); });
+        PLAKA_VERI = {};
+        PLAKA_NTP = {};
+        SIM_IMEI = {};
+        HEKDEN_GELENLER = [];
+        CIHAZ_TURU_SAYAC = 0;
+        KAYITLAR = [];
+        ARSIV_KAYITLAR = [];
+        siraNo = 0;
+        var elListe = document.getElementById('listeExcel');
+        if (elListe) elListe.value = '';
+        var elCihaz = document.getElementById('excelCihazTuru');
+        if (elCihaz) elCihaz.value = '';
+        var elSim = document.getElementById('excelSimImei');
+        if (elSim) elSim.value = '';
+        var ld = document.getElementById('listeDurum');
+        if (ld) { ld.textContent = 'Dosya seçilmedi'; ld.className = 'status-badge empty'; }
+        var dc = document.getElementById('durumCihazTuru');
+        if (dc) { dc.textContent = 'Dosya seçilmedi'; dc.className = 'status-badge empty'; }
+        var dsi = document.getElementById('durumSimImei');
+        if (dsi) { dsi.textContent = 'Dosya seçilmedi'; dsi.className = 'status-badge empty'; }
+        var ta = document.getElementById('yoneticiNumaralar');
+        if (ta) ta.value = '';
+        var hekTa = document.getElementById('hekListesi');
+        if (hekTa) hekTa.value = '';
+        listeyiCiz();
+        arsiviCiz();
+        excelGonderButonGuncelle();
+        guncelleSayac();
+        yoneticiPaneliKapat();
+        alert('Tüm veriler sıfırlandı.');
+    }
     function yoneticiNumaralariKaydet() {
         const ta = document.getElementById('yoneticiNumaralar');
         if (!ta) return;
@@ -1470,7 +1599,11 @@
         }
         let html = '<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>NTP Cihaz Arşivi</title>';
         html += '<style>';
-        html += 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;background:#f3f4f6;color:#111827;}';
+        html += 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:20px;padding-top:56px;background:#f3f4f6;color:#111827;}';
+        html += '.pdf-header{position:fixed;top:0;left:0;right:0;height:48px;background:#111827;color:#f9fafb;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.2);}';
+        html += '.pdf-header h1{font-size:18px;margin:0;font-weight:600;}';
+        html += '.pdf-close{border:none;background:transparent;color:#9ca3af;font-size:22px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:6px;}';
+        html += '.pdf-close:hover{background:rgba(255,255,255,0.15);color:#fff;}';
         html += 'h1{font-size:20px;margin-bottom:4px;color:#111827;}';
         html += 'p.sub{font-size:12px;margin-top:0;margin-bottom:16px;color:#4b5563;}';
         html += 'table{width:100%;border-collapse:collapse;font-size:11px;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(15,23,42,0.15);}';
@@ -1478,7 +1611,7 @@
         html += 'th{background:#111827;color:#f9fafb;font-weight:600;}';
         html += 'tr:nth-child(even){background:#f9fafb;}';
         html += '</style></head><body>';
-        html += '<h1>NTP Cihaz Arşivi</h1>';
+        html += '<div class="pdf-header"><h1>NTP Cihaz Arşivi</h1><button type="button" class="pdf-close" onclick="window.close()" title="Kapat" aria-label="Kapat">✕</button></div>';
         html += '<p class="sub">Arşivdeki cihaz sayısı: ' + ARSIV_KAYITLAR.length + '</p>';
         html += '<table><thead><tr>';
         html += '<th>#</th><th>BİRİMİ</th><th>PLAKA</th><th>EKİP KODU</th><th>MARKA</th><th>CİHAZ TÜRÜ</th><th>SİM NO</th><th>IMEI / SERİ NO</th>';
