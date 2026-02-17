@@ -1393,6 +1393,8 @@
                     var id = idxBul('DURUMU'); if (id < 0) id = idxBul('DURUM'); if (id >= 0) idxDurumu = id;
                     var ir = headersNorm.findIndex(function(h) { return h.indexOf('RESMI') >= 0 && h.indexOf('SIVIL') >= 0; });
                     if (ir >= 0) idxResmiSivil = ir;
+                    var icihaz = headersNorm.findIndex(function(h) { return h.indexOf('CIHAZ') >= 0 && h.indexOf('TURU') >= 0; });
+                    if (icihaz >= 0) idxCihazTuru = icihaz;
                 }
             }
             var idxAktifKullanilanBirim = headersNorm.findIndex(function(h) {
@@ -1651,7 +1653,12 @@
             console.log('Aranan: [' + key + '] - Durum: ' + (ntp.ntpTur || ana ? 'Bulundu' : 'Bulunamadı') + ' (NTP: ' + (ntp.ntpTur ? 'var' : 'yok') + ', Ana: ' + (ana ? 'var' : 'yok') + ')');
         }
         // Cihaz Türü: önce gercek.xlsx içindeki cihazTuru, yoksa CIHAZ TURU listesinden
-        if (elCihazTuru) elCihazTuru.value = ana && ana.cihazTuru ? str(ana.cihazTuru) : str(ntp.ntpTur);
+        // Eğer cihazTuru ile resmiSivil aynıysa (yanlış sütun okunmuş olabilir), NTP listesinden al
+        var cihazVal = ana && ana.cihazTuru ? str(ana.cihazTuru) : str(ntp.ntpTur);
+        if (ana && ana.cihazTuru && ana.resmiSivil && String(ana.cihazTuru).trim() === String(ana.resmiSivil).trim()) {
+            cihazVal = str(ntp.ntpTur);
+        }
+        if (elCihazTuru) elCihazTuru.value = cihazVal;
         // Araç bilgileri gercek.xlsx (veya Ana_Liste) kaydından
         if (elKullanildigiYer) elKullanildigiYer.value = ana ? str(ana.kullanildigiYer) : '';
         if (elAltBirim) elAltBirim.value = ana ? str(ana.altBirim) : '';
