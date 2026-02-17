@@ -565,6 +565,16 @@
         .birim-satir-tikla { cursor: pointer; }
         .birim-satir-tikla:hover { background: rgba(59, 130, 246, 0.2) !important; }
 
+        /* AKTİF KULLANILAN BİRİM: dolu ise sarı–lacivert yanıp sönsün */
+        .aktif-birim-input { background: #f1f5f9; color: #1e293b; }
+        .aktif-birim-input.aktif-birim-dolu {
+            animation: blink-sari-lacivert 1.2s ease-in-out infinite;
+        }
+        @keyframes blink-sari-lacivert {
+            0%, 100% { background-color: #fef08a; color: #1e3a8a; }
+            50% { background-color: #1e3a8a; color: #fef08a; }
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -789,6 +799,12 @@
             <div class="col">
                 <label>SİVİL PLAKA</label>
                 <input type="text" id="sivilPlaka" placeholder="Plaka yazınca otomatik gelir" readonly class="sivil-plaka-input">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col tam-genis">
+                <label>AKTİF KULLANILAN BİRİM</label>
+                <input type="text" id="aktifKullanilanBirim" placeholder="Plaka yazınca otomatik gelir (gercek.xlsx)" readonly class="aktif-birim-input">
             </div>
         </div>
         <div class="row">
@@ -1379,6 +1395,12 @@
                     if (ir >= 0) idxResmiSivil = ir;
                 }
             }
+            var idxAktifKullanilanBirim = headersNorm.findIndex(function(h) {
+                if (!h) return false;
+                var u = ('' + h).toUpperCase().replace(/\u0130/g, 'I').replace(/ı/g, 'I').replace(/i/g, 'I');
+                return (u.indexOf('AKTIF') >= 0 && u.indexOf('BIRIM') >= 0) || (u.indexOf('AKTIF') >= 0 && u.indexOf('KULLANILAN') >= 0);
+            });
+            if (idxAktifKullanilanBirim < 0 && ilkSatirBaslikMi) { idxAktifKullanilanBirim = 10; }
             var dataStart = ilkSatirBaslikMi ? 1 : 0;
             PLAKA_VERI = {};
             for (var r = dataStart; r < rows.length; r++) {
@@ -1398,7 +1420,8 @@
                     modelYili: cell(idxModelYili),
                     durumu: cell(idxDurumu),
                     resmiSivil: cell(idxResmiSivil),
-                    cihazTuru: cell(idxCihazTuru)
+                    cihazTuru: cell(idxCihazTuru),
+                    aktifKullanilanBirim: idxAktifKullanilanBirim >= 0 ? cell(idxAktifKullanilanBirim) : ''
                 };
                 var key = plakaNormalize(plaka);
                 if (key) {
@@ -1638,6 +1661,12 @@
         if (elModelYili) elModelYili.value = ana ? str(ana.modelYili) : '';
         if (elDurumu) elDurumu.value = ana ? str(ana.durumu) : '';
         if (elResmiSivil) elResmiSivil.value = ana ? str(ana.resmiSivil) : '';
+        var elAktifBirim = document.getElementById('aktifKullanilanBirim');
+        if (elAktifBirim) {
+            var aktifBirimVal = ana && ana.aktifKullanilanBirim ? str(ana.aktifKullanilanBirim) : '';
+            elAktifBirim.value = aktifBirimVal;
+            if (aktifBirimVal) elAktifBirim.classList.add('aktif-birim-dolu'); else elAktifBirim.classList.remove('aktif-birim-dolu');
+        }
         if (uyariEl) {
             if (key && !ana) {
                 uyariEl.textContent = (Object.keys(PLAKA_VERI || {}).length === 0 ? 'Veritabanı yüklü değil. ' : 'Bu plaka bulunamadı. ') + 'Yönetici Paneli > gercek.xlsx ve CIHAZ TURU.xlsx yükleyin.';
@@ -2147,7 +2176,9 @@
                             marka: v.marka || '',
                             modelYili: v.modelYili || '',
                             durumu: v.durumu || '',
-                            resmiSivil: v.resmiSivil || ''
+                            resmiSivil: v.resmiSivil || '',
+                            cihazTuru: v.cihazTuru != null ? v.cihazTuru : '',
+                            aktifKullanilanBirim: v.aktifKullanilanBirim != null ? v.aktifKullanilanBirim : ''
                         };
                     }
                 }
