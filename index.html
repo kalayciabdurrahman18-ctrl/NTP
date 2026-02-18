@@ -761,7 +761,10 @@
     <header class="app-header">
         <div class="app-header-title">
             NTP CİHAZLARI
-            <span id="headerCounter" class="header-counter">Kayıt: 0</span>
+            <div style="font-size: 0.7em; opacity: 0.8;">Bilgi Teknolojileri ve Haberleşme Şube Müdürlüğü</div>
+            <div style="display: flex; align-items: center; justify-content: center; margin-top: 2px;">
+                <span id="headerCounter" class="header-counter" style="font-size: 1.5em;">Kayıt: 0</span>
+            </div>
         </div>
     </header>
 
@@ -783,6 +786,7 @@
                 <div class="plaka-wrapper">
                     <span class="plaka-prefix">10 A </span>
                     <input type="text" id="plaka" placeholder="0041 veya 06AA9617" maxlength="8" oninput="plakaRakamGirildi(this); plakaDegisti()">
+                    <span id="lastSavedPlakaInfo" style="font-size: 0.8em; color: #a0a0a0; margin-top: 4px; display: block;"></span>
                 </div>
             </div>
             <div class="col genis">
@@ -840,7 +844,7 @@
         <div class="row">
             <div class="col">
                 <label>SİM NO <span class="blink-dot" title="Zorunlu"></span></label>
-                <input type="text" id="simNo" placeholder="(5xx) xxx xx xx" maxlength="15" oninput="simNoMask(this)" onblur="simNoImeiDoldur()">
+                <input type="text" id="simNo" placeholder="5xxxxxxxxx" maxlength="10" onblur="simNoImeiDoldur()">
                 <p id="simImeiInfo" class="helper" style="display:none;"></p>
             </div>
             <div class="col">
@@ -911,6 +915,16 @@
                     <div class="row" style="align-items:center; gap:8px;">
                         <div class="file-input-wrap"><input type="file" id="excelSimImei" accept=".xlsx,.xls" onchange="simImeiExcelYukle(this)"></div>
                         <button type="button" class="btn btn-light" onclick="simImeiListesiniSifirla()">Sıfırla</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item" id="acc-kaydedilen-cihazlar">
+                <div class="accordion-head" onclick="accordionToggle('acc-kaydedilen-cihazlar')"><span><span class="icon">💾</span> Kaydedilen Cihazlar</span><span class="accordion-icon">▼</span></div>
+                <div class="accordion-body">
+                    <p class="helper">Kaydedilmiş cihazları buradan silebilirsiniz.</p>
+                    <div id="kaydedilenCihazlarListesi" class="table-container">
+                        <!-- Kaydedilen cihazlar buraya gelecek -->
                     </div>
                 </div>
             </div>
@@ -1686,9 +1700,15 @@
     }
 
     function kaydet() {
-        // Kaydetmeden hemen önce SİM listesinden IMEI doldurmayı dene (blur tetiklenmemiş olabilir)
-        simNoImeiDoldur();
         const plaka = getPlakaTam();
+
+        // Mükerrer kayıt kontrolü
+        const isDuplicate = KAYITLAR.some(kayit => plakaNormalize(kayit.plaka) === plakaNormalize(plaka));
+        if (isDuplicate) {
+            alert('Mükerrer kayıt! Bu plaka zaten mevcut.');
+            return;
+        }
+
         const kullanildigiYer = document.getElementById('kullanildigiYer').value.trim();
         const altBirim = (document.getElementById('altBirim') && document.getElementById('altBirim').value) ? document.getElementById('altBirim').value.trim() : '';
         const sivilPlaka = (document.getElementById('sivilPlaka') && document.getElementById('sivilPlaka').value) ? document.getElementById('sivilPlaka').value.trim() : '';
@@ -1701,7 +1721,7 @@
         const ekipKodu = (document.getElementById('ekipKodu') && document.getElementById('ekipKodu').value) ? document.getElementById('ekipKodu').value.trim() : '';
         const simNo = document.getElementById('simNo').value.trim();
         const imeiNo = document.getElementById('imeiNo').value.trim();
-        if (!getSimNoRaw() || getSimNoRaw().length < 10) { alert('SİM NO zorunludur (10 hane: 5xx xxx xx xx).'); return; }
+        if (getSimNoRaw().length !== 10) { alert('SİM NO zorunludur (10 hane olmalı: 5xx xxx xx xx).'); return; }
         if (!imeiNo) { alert('IMEI NO zorunludur.'); return; }
         if (!ekipKodu) { alert('Ekip kodu zorunludur.'); return; }
         siraNo++;
@@ -1710,6 +1730,9 @@
         localStorage.setItem('nesne_takip_kayitlar', JSON.stringify(KAYITLAR));
         localStorage.setItem('nesne_takip_sira_no', String(siraNo));
         listeyiCiz();
+        
+        const lastPlaka = plaka; // Son kaydedilen plakayı al
+
         document.getElementById('cinsi').value = '';
         document.getElementById('marka').value = '';
         document.getElementById('modelYili').value = '';
@@ -1718,7 +1741,14 @@
         document.getElementById('ekipKodu').value = '';
         document.getElementById('simNo').value = '';
         document.getElementById('imeiNo').value = '';
+        
+        // Plaka alanını temizle
+        document.getElementById('plaka').value = '';
+        // Son kaydedilen plakayı göster
+        document.getElementById('lastSavedPlakaInfo').textContent = `Son kaydedilen: ${lastPlaka.toLowerCase()}`;
+
         guncelleSayac();
+        simNoImeiDoldur(); // Call simNoImeiDoldur after validation and saving
     }
 
     function listeyiCiz() {
@@ -1789,18 +1819,53 @@
         localStorage.setItem('nesne_takip_hekden_gelenler', JSON.stringify(HEKDEN_GELENLER));
     }
 
+    function kaydiSil(index) {
+        var sifre = prompt('Kaydı silmek için şifreyi girin:');
+        if (sifre === null) return;
+        if (sifre !== '505700') {
+            alert('Yanlış şifre!');
+            return;
+        }
+        if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
+        KAYITLAR.splice(index, 1);
+        localStorage.setItem('nesne_takip_kayitlar', JSON.stringify(KAYITLAR));
+        listeyiCiz();
+        guncelleSayac();
+        plakaDegisti();
+        listeGuncelleYoneticiPaneli();
+    }
+
+    function listeGuncelleYoneticiPaneli() {
+        var listeAlani = document.getElementById('kaydedilenCihazlarListesi');
+        if (!listeAlani) return;
+        if (!KAYITLAR || !KAYITLAR.length) {
+            listeAlani.innerHTML = '<p class="helper">Henüz kaydedilmiş cihaz yok.</p>';
+            return;
+        }
+        var html = '<table class="table-zebra"><thead><tr>';
+        html += '<th>S.N.</th><th>PLAKA</th><th>CİNSİ</th><th>MARKA</th><th>MODEL YILI</th><th>DURUMU</th><th>RESMİ/SİVİL</th><th>CİHAZ TÜRÜ</th><th>SİL</th>';
+        html += '</tr></thead><tbody>';
+        for (var i = 0; i < KAYITLAR.length; i++) {
+            var k = KAYITLAR[i];
+            html += '<tr><td>' + (k.sNo || '') + '</td><td>' + (k.plaka || '') + '</td><td>' + (k.cinsi || '') + '</td><td>' + (k.marka || '') + '</td><td>' + (k.modelYili || '') + '</td><td>' + (k.durumu || '') + '</td><td>' + (k.resmiSivil || '') + '</td><td>' + (k.cihazTuru || '') + '</td><td><button type="button" class="btn btn-light" style="color:#dc2626" onclick="kaydiSil(' + i + ')">Sil</button></td></tr>';
+        }
+        html += '</tbody></table>';
+        listeAlani.innerHTML = html;
+    }
+
     function yoneticiPaneliAc() {
-        const overlay = document.getElementById('yoneticiPaneliOverlay');
-        const ta = document.getElementById('yoneticiNumaralar');
+        var overlay = document.getElementById('yoneticiPaneliOverlay');
+        var ta = document.getElementById('yoneticiNumaralar');
         if (ta) ta.value = (localStorage.getItem('nesne_takip_yonetici_numaralar') || '').replace(/\|/g, '\n');
-        const hekTa = document.getElementById('hekListesi');
+        var hekTa = document.getElementById('hekListesi');
         if (hekTa) hekTa.value = (HEKDEN_GELENLER || []).join('\n');
-        const dsi = document.getElementById('durumSimImei');
+        var dsi = document.getElementById('durumSimImei');
         if (dsi) {
-            const sn = Object.keys(SIM_IMEI).length;
+            var sn = Object.keys(SIM_IMEI).length;
             dsi.textContent = sn > 0 ? sn + ' kayıt (sabit — her açılışta yüklü)' : 'Dosya seçilmedi';
             dsi.className = 'status-badge ' + (sn > 0 ? 'loaded' : 'empty');
         }
+        listeGuncelleYoneticiPaneli();
         if (overlay) overlay.classList.add('acik');
     }
     function yoneticiPaneliKapat() {
@@ -1816,6 +1881,7 @@
             alert('Şifre yanlış. Veriler sıfırlanmadı.');
             return;
         }
+        if (!confirm("Tüm kayıtları, listeleri ve ayarları silmek istediğinize emin misiniz? Bu işlem geri alınamaz!")) return;
         var keys = [];
         for (var i = 0; i < localStorage.length; i++) {
             var k = localStorage.key(i);
@@ -1852,6 +1918,7 @@
         guncelleSayac();
         yoneticiPaneliKapat();
         alert('Tüm veriler sıfırlandı.');
+        listeGuncelleYoneticiPaneli(); // Yönetici panelini güncelle
     }
     function yoneticiNumaralariKaydet() {
         const ta = document.getElementById('yoneticiNumaralar');
