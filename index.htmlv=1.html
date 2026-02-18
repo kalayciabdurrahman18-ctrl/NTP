@@ -1,0 +1,2393 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Nesne Takip - Plaka / Birim / SIM / IMEI</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --card-bg: #0b1120;
+            --surface: #020617;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 10px;
+            background:
+                radial-gradient(circle at top, #1d4ed8 0%, #020617 40%, #000000 100%);
+            color: #e5e7eb;
+        }
+
+        /* Telefon çerçevesi (Android benzeri) */
+        .app-shell {
+            position: relative;
+            width: 100%;
+            max-width: 520px;
+            max-height: 900px;
+            border-radius: 32px;
+            background: radial-gradient(circle at top left, rgba(51, 65, 85, 0.7), rgba(15, 23, 42, 0.95));
+            box-shadow:
+                0 24px 55px rgba(0, 0, 0, 0.85),
+                0 0 0 1px rgba(148, 163, 184, 0.08);
+            overflow: hidden;
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid rgba(15, 23, 42, 0.8);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Üst sistem bar (saat, sinyal, pil) */
+        .system-bar {
+            height: 22px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: rgba(248, 250, 252, 0.92);
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), transparent);
+        }
+
+        .system-bar-left,
+        .system-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .system-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+
+        .system-signal {
+            width: 14px;
+            height: 8px;
+            border-radius: 2px;
+            border: 1px solid rgba(248, 250, 252, 0.9);
+            position: relative;
+        }
+
+        .system-signal::after {
+            content: "";
+            position: absolute;
+            inset: 1px;
+            border-radius: 1px;
+            background: rgba(248, 250, 252, 0.9);
+        }
+
+        .system-battery {
+            width: 18px;
+            height: 8px;
+            border-radius: 2px;
+            border: 1px solid rgba(248, 250, 252, 0.9);
+            position: relative;
+            margin-left: 3px;
+        }
+
+        .system-battery::after {
+            content: "";
+            position: absolute;
+            inset: 1px 2px 1px 1px;
+            border-radius: 1px;
+            background: rgba(248, 250, 252, 0.9);
+        }
+
+        .system-battery::before {
+            content: "";
+            position: absolute;
+            right: -2px;
+            top: 2px;
+            width: 1px;
+            height: 4px;
+            border-radius: 1px;
+            background: rgba(248, 250, 252, 0.9);
+        }
+
+        /* Uygulama üst barı */
+        .app-header {
+            padding: 14px 18px 12px;
+            background: linear-gradient(135deg, #0b1f3a, #1d4ed8);
+            color: #f9fafb;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .app-header-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            text-align: center;
+        }
+
+        /* Asıl içerik alanı */
+        .app-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 14px 12px 8px;
+            background:
+                radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.9), #020617);
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at top, rgba(30, 64, 175, 0.12), rgba(15, 23, 42, 0.98));
+            border-radius: 18px;
+            padding: 16px 14px 14px;
+            box-shadow:
+                0 12px 30px rgba(15, 23, 42, 0.95),
+                0 0 0 1px rgba(148, 163, 184, 0.12);
+            border-top: 3px solid rgba(59, 130, 246, 0.7);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            color: #e5e7eb;
+        }
+
+        h1 {
+            color: #e5edff;
+            font-size: 1.1rem;
+            margin: 0 0 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 span.emoji {
+            font-size: 1.4rem;
+        }
+
+        h1 span.text {
+            flex: 1;
+        }
+
+        .title-sub {
+            display: block;
+            font-size: 0.8rem;
+            margin-top: 2px;
+            color: #9ca3af;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(30, 64, 175, 0.6);
+        }
+        .section:last-of-type { border-bottom: none; }
+        .section h2 { font-size: 0.86rem; color: #bfdbfe; margin: 0 0 10px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; }
+        .section-excel {
+            background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), rgba(15, 23, 42, 0.98));
+            border: 1px solid rgba(148, 163, 184, 0.32);
+            border-radius: 14px;
+            padding: 16px 14px;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.75);
+        }
+
+        .section-excel .section-excel-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #bfdbfe;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+        }
+        .section-excel .section-excel-title span.icon { font-size: 1.25rem; }
+        .section-excel .row { margin-bottom: 10px; }
+        .section-excel .row:last-of-type { margin-bottom: 0; }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-badge.empty {
+            background: rgba(15, 23, 42, 0.6);
+            color: #9ca3af;
+            border: 1px dashed rgba(148, 163, 184, 0.5);
+        }
+
+        .status-badge.loaded {
+            background: rgba(16, 185, 129, 0.12);
+            color: #6ee7b7;
+            border: 1px solid rgba(34, 197, 94, 0.8);
+        }
+
+        .file-input-wrap {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px dashed rgba(148, 163, 184, 0.7);
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .file-input-wrap:focus-within { border-color: var(--accent); outline: none; }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .col { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+        .col.wide { min-width: 200px; }
+        .col.genis { min-width: 280px; flex: 1 1 auto; }
+        .col.tam-genis { width: 100%; min-width: 0; flex: 1 1 100%; }
+
+        label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        input,
+        select {
+            padding: 11px 10px 9px;
+            border-radius: 9px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            background: rgba(15, 23, 42, 0.9);
+            color: #e5e7eb;
+            font-size: 14px;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.05s ease;
+        }
+
+        input::placeholder {
+            color: #6b7280;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(15, 23, 42, 0.95);
+            box-shadow:
+                0 0 0 1px rgba(59, 130, 246, 0.6),
+                0 6px 14px rgba(15, 23, 42, 0.9);
+            transform: translateY(-1px);
+        }
+
+        .btn {
+            padding: 11px 18px;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.85);
+            transition: transform 0.07s ease, box-shadow 0.14s ease, filter 0.12s ease, background 0.18s ease;
+        }
+
+        .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+        .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+        .btn-light { background: rgba(30, 64, 175, 0.16); color: #e5e7eb; border: 1px solid rgba(148, 163, 184, 0.5); }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn:hover:not(:disabled) {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.95);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(1px) scale(0.99);
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.9);
+        }
+
+        .test-modu-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: #9ca3af;
+            cursor: pointer;
+        }
+
+        .test-modu-wrap input { cursor: pointer; }
+
+        .modal-overlay {
+            display: none;
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.72);
+            z-index: 100;
+            align-items: flex-start;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 16px 10px 24px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-overlay.acik { display: flex; pointer-events: auto; }
+
+        .modal-panel {
+            background: radial-gradient(circle at top, #0f172a, #020617 65%);
+            border-radius: 18px;
+            padding: 20px 16px 16px;
+            max-width: 420px;
+            width: 90%;
+            box-shadow:
+                0 18px 40px rgba(15, 23, 42, 0.98),
+                0 0 0 1px rgba(148, 163, 184, 0.35);
+            border-top: 3px solid rgba(37, 99, 235, 0.9);
+            margin: auto;
+        }
+
+        /* Yönetici paneli uzun: Ana Liste en üstte, aşağı kaydırınca hepsi görünür */
+        #yoneticiPaneliOverlay .modal-panel {
+            max-height: min(90vh, 800px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-panel h3 {
+            margin: 0;
+            color: #dbeafe;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .modal-close {
+            border: none;
+            background: transparent;
+            color: #9ca3af;
+            font-size: 18px;
+            line-height: 1;
+            padding: 4px 6px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(148, 163, 184, 0.18);
+            color: #e5e7eb;
+            transform: translateY(-1px);
+        }
+
+        .modal-panel-wide { max-width: 96%; width: 96%; }
+        .table-wrap-zebra { min-width: 0; }
+        .table-zebra { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 600px; }
+        .table-zebra th, .table-zebra td { border: 1px solid rgba(30, 64, 175, 0.5); padding: 8px; text-align: left; }
+        .table-zebra th { background: var(--primary); color: #e5edff; font-weight: 600; }
+        .table-zebra tbody tr:nth-child(odd) { background: #ffffff; color: #0f172a; }
+        .table-zebra tbody tr:nth-child(even) { background: #f3f4f6; color: #0f172a; }
+        /* Birimdeki Cihazlar: tam ekranı kaplasın, X kapat her zaman görünsün */
+        #birimAramaOverlay .modal-panel {
+            width: 96%;
+            max-width: none;
+            height: 92vh;
+            max-height: 92vh;
+            margin: auto;
+        }
+        #birimAramaSonuc .table-zebra tbody tr:nth-child(odd) { background: #ffffff; color: #111827; }
+        #birimAramaSonuc .table-zebra tbody tr:nth-child(even) { background: #f3f4f6; color: #111827; }
+
+        .modal-panel textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            border-radius: 10px;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            background: rgba(15, 23, 42, 0.98);
+            color: #e5e7eb;
+        }
+
+        .modal-panel .helper { margin-top: 6px; }
+        .modal-panel .btn { margin-top: 12px; margin-right: 8px; }
+        /* Akordiyon (Yönetici paneli) */
+        .accordion-item { border: 1px solid rgba(30,64,175,0.4); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+        .accordion-item .accordion-head { padding: 12px 14px; cursor: pointer; background: rgba(30,64,175,0.2); color: #bfdbfe; font-weight: 600; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+        .accordion-item .accordion-head:hover { background: rgba(30,64,175,0.35); }
+        .accordion-item .accordion-head .accordion-icon { transition: transform 0.2s; }
+        .accordion-item.acik .accordion-icon { transform: rotate(180deg); }
+        .accordion-item .accordion-body { display: none; padding: 12px 14px; border-top: 1px solid rgba(30,64,175,0.3); }
+        .accordion-item.acik .accordion-body { display: block; }
+
+        .helper {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .plaka-wrapper {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.96);
+            padding: 0 10px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.9);
+        }
+
+        .plaka-wrapper .plaka-prefix {
+            font-weight: 600;
+            color: #bfdbfe;
+            font-size: 15px;
+        }
+
+        .plaka-wrapper input {
+            border: none;
+            padding: 10px 0;
+            margin-left: 4px;
+            min-width: 90px;
+            font-size: 15px;
+            text-align: left;
+            letter-spacing: 1px;
+            background: transparent;
+            color: #e5e7eb;
+        }
+
+        .plaka-wrapper input::placeholder { color: #6b7280; }
+        .plaka-wrapper input:focus { outline: none; }
+
+        /* Kayıt sayacı rozeti */
+        .header-counter {
+            margin-left: 10px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(191, 219, 254, 0.7);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #bfdbfe;
+            white-space: nowrap;
+        }
+
+        /* Kullanıldığı yer alanı okunaklı olsun */
+        #kullanildigiYer {
+            background: #e5edff !important;
+            color: #1e3a8a !important;
+        }
+        /* ALT BİRİM: koyu lacivert okunaklı */
+        #altBirim { color: #000000 !important; }
+        /* SİVİL PLAKA: kırmızı ve kalın */
+        .sivil-plaka-input, #sivilPlaka {
+            color: #dc2626 !important;
+            font-weight: bold !important;
+            background: #fef2f2 !important;
+        }
+        /* Ekip Kodu Zorunlu: yumuşak kırmızı pulse (çerçeve + metin) */
+        .ekip-kodu-zorunlu { color: #dc2626; animation: ekip-pulse 1.8s ease-in-out infinite; }
+        #ekipKodu { animation: ekip-pulse-border 1.8s ease-in-out infinite; }
+        @keyframes ekip-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+        @keyframes ekip-pulse-border { 0%, 100% { border-color: rgba(220,38,38,0.6); box-shadow: 0 0 0 1px rgba(220,38,38,0.4); } 50% { border-color: rgba(220,38,38,0.95); box-shadow: 0 0 0 2px rgba(220,38,38,0.6); } }
+        #ekipKodu::placeholder { color: #b91c1c; opacity: 0.9; }
+        /* SİM NO ve IMEI NO: kırmızı çerçeve */
+        #simNo, #imeiNo {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.4);
+        }
+        #simNo:focus, #imeiNo:focus {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.5) !important;
+        }
+        /* Zorunlu alan yanıp sönen kırmızı nokta */
+        .blink-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #dc2626;
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: blink-dot 1s ease-in-out infinite;
+        }
+        @keyframes blink-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+        /* Ana başlık: NESNE TAKİP CİHAZLARI — kırmızı */
+        .baslik-nesne-takip {
+            color: #dc2626 !important;
+            font-weight: 700;
+            text-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+        }
+        .baslik-nesne-takip .title-sub { color: #fca5a5; }
+        /* Birim listesi satırı tıklanabilir */
+        .birim-satir-tikla { cursor: pointer; }
+        .birim-satir-tikla:hover { background: rgba(59, 130, 246, 0.2) !important; }
+
+        /* AKTİF KULLANILAN BİRİM: dolu ise sarı–lacivert yanıp sönsün */
+        .aktif-birim-input { background: #f1f5f9; color: #1e293b; }
+        .aktif-birim-input.aktif-birim-dolu {
+            animation: blink-sari-lacivert 1.2s ease-in-out infinite;
+        }
+        @keyframes blink-sari-lacivert {
+            0%, 100% { background-color: #fef08a; color: #1e3a8a; }
+            50% { background-color: #1e3a8a; color: #fef08a; }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            border: 1px solid rgba(30, 64, 175, 0.8);
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: radial-gradient(circle at top, rgba(37, 99, 235, 0.55), rgba(15, 23, 42, 0.98));
+            color: #e5edff;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) { background: rgba(15, 23, 42, 0.85); }
+        tr:nth-child(odd) { background: rgba(15, 23, 42, 0.9); }
+
+        /* Mobil görünüm */
+        @media (max-width: 768px) {
+            body { padding: 10px 8px; }
+            .app-shell { max-width: 100%; max-height: none; border-radius: 28px; }
+            .app-main { padding: 12px 10px 8px; }
+            .container { padding: 14px 11px 11px; border-radius: 16px; }
+            h1 { font-size: 1rem; margin-bottom: 14px; }
+            .section { margin-bottom: 16px; padding-bottom: 12px; }
+            .section h2 { font-size: 0.8rem; margin-bottom: 8px; }
+            .section-excel { padding: 12px 10px; }
+            .row { flex-direction: column; gap: 10px; margin-bottom: 10px; }
+            .col, .col.wide, .col.genis, .col.tam-genis { min-width: 0; width: 100%; }
+            .col[style*="align-self"] { align-self: stretch !important; }
+            label { font-size: 11px; }
+            input, select { padding: 12px 10px; font-size: 16px; min-height: 44px; }
+            .btn { padding: 12px 16px; min-height: 44px; font-size: 14px; width: 100%; }
+            .row .btn { width: auto; min-width: 0; }
+            .plaka-wrapper { width: 100%; min-width: 0; }
+            .plaka-wrapper input { min-width: 60px; font-size: 16px; }
+            .test-modu-wrap { font-size: 11px; width: 100%; }
+            .modal-panel { padding: 20px 16px; width: 95%; max-width: none; }
+            #listeAlani { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            #listeAlani table { font-size: 11px; min-width: 600px; }
+            #listeAlani th, #listeAlani td { padding: 8px 6px; }
+        }
+        @media (max-width: 480px) {
+            body { padding: 8px 6px; }
+            .app-shell { border-radius: 24px; }
+            .container { padding: 12px 9px; }
+            h1 { font-size: 0.95rem; }
+        }
+
+        /* 12.9 inç tablet (iPad Pro vb.) — ekrana tam sığsın */
+        @media (min-width: 1024px) {
+            html, body {
+                height: 100%;
+                min-height: 100vh;
+                min-height: 100dvh;
+                padding: 0;
+                align-items: stretch;
+                overflow: hidden;
+            }
+            .app-shell {
+                max-width: none;
+                width: 100%;
+                max-height: none;
+                height: 100%;
+                min-height: 100vh;
+                min-height: 100dvh;
+                border-radius: 0;
+                box-shadow: none;
+                border: none;
+            }
+            .app-main {
+                flex: 1;
+                min-height: 0;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 16px 20px 12px;
+            }
+            .container {
+                max-height: 100%;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .container .section:first-of-type {
+                flex: 0 0 auto;
+            }
+            /* Yönetici paneli — 12.9 inç tablette ana ekran gibi tam sığsın */
+            #yoneticiPaneliOverlay {
+                padding: 0;
+                align-items: stretch;
+                justify-content: stretch;
+            }
+            #yoneticiPaneliOverlay .modal-panel {
+                max-width: none;
+                width: 100%;
+                height: 100%;
+                min-height: 100vh;
+                min-height: 100dvh;
+                max-height: none;
+                border-radius: 0;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            #yoneticiPaneliOverlay .modal-panel .modal-header {
+                flex: 0 0 auto;
+            }
+            #yoneticiPaneliOverlay .modal-panel .section,
+            #yoneticiPaneliOverlay .modal-panel .helper,
+            #yoneticiPaneliOverlay .modal-panel > div:not(.modal-header) {
+                flex: 0 0 auto;
+            }
+            #yoneticiPaneliOverlay .modal-panel > div:last-of-type {
+                flex: 0 0 auto;
+                margin-top: auto;
+            }
+            #yoneticiPaneliOverlay .modal-panel .section {
+                overflow-y: visible;
+            }
+            #yoneticiPaneliOverlay .modal-panel {
+                overflow-y: auto;
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        /* Alt gezinme çubuğu (Android navigation) */
+        .bottom-nav {
+            height: 40px;
+            padding: 6px 28px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 26px;
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), transparent 60%);
+            border-top: 1px solid rgba(148, 163, 184, 0.35);
+        }
+
+        .nav-pill {
+            width: 46px;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.65);
+        }
+
+        .nav-circle {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.8);
+        }
+
+        .nav-square {
+            width: 9px;
+            height: 9px;
+            border-radius: 2px;
+            border: 1px solid rgba(148, 163, 184, 0.9);
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <div class="system-bar">
+        <div class="system-bar-left">
+            <span class="system-dot"></span>
+            <span id="systemTime">12:30</span>
+        </div>
+        <div class="system-bar-right">
+            <div class="system-signal"></div>
+            <div class="system-battery"></div>
+        </div>
+    </div>
+
+    <header class="app-header">
+        <div class="app-header-title">
+            NTP CİHAZLARI
+            <div style="font-size: 0.7em; opacity: 0.8;">Bilgi Teknolojileri ve Haberleşme Şube Müdürlüğü</div>
+            <div style="display: flex; align-items: center; justify-content: center; margin-top: 2px;">
+                <span id="headerCounter" class="header-counter" style="font-size: 1.5em;">Kayıt: 0</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <div class="container">
+            <h1 class="baslik-nesne-takip">
+                <span class="emoji">📋</span>
+                <span class="text">
+                    NESNE TAKİP CİHAZLARI
+                    <span class="title-sub">Sistem ve Güvenlik Büro Amirliği</span>
+                </span>
+            </h1>
+
+    <div class="section" style="flex:0 0 auto;">
+        <h2>3. Kayıt Girişi</h2>
+        <div class="row">
+            <div class="col">
+                <label>PLAKA NO</label>
+                <div class="plaka-wrapper">
+                    <span class="plaka-prefix">10 A </span>
+                    <input type="text" id="plaka" placeholder="0041 veya 06AA9617" maxlength="8" oninput="plakaRakamGirildi(this); plakaDegisti()">
+                    <span id="lastSavedPlakaInfo" style="font-size: 0.8em; color: #a0a0a0; margin-top: 4px; display: block;"></span>
+                </div>
+            </div>
+            <div class="col genis">
+                <label>KULLANILDIĞI YER</label>
+                <input type="text" id="kullanildigiYer" placeholder="Plaka yazınca otomatik gelir" readonly style="background:#f1f5f9;">
+            </div>
+        </div>
+        <p id="plakaVeriUyari" class="helper" style="display:none; margin-top:4px; margin-bottom:0;"></p>
+        <div class="row">
+            <div class="col genis">
+                <label>ALT BİRİM</label>
+                <input type="text" id="altBirim" placeholder="Plaka yazınca otomatik gelir" readonly style="background:#f1f5f9;">
+            </div>
+            <div class="col">
+                <label>SİVİL PLAKA</label>
+                <input type="text" id="sivilPlaka" placeholder="Plaka yazınca otomatik gelir" readonly class="sivil-plaka-input">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col tam-genis">
+                <label>AKTİF KULLANILAN BİRİM</label>
+                <input type="text" id="aktifKullanilanBirim" placeholder="Plaka yazınca otomatik gelir (gercek.xlsx)" readonly class="aktif-birim-input">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <label>CİNSİ</label>
+                <input type="text" id="cinsi" placeholder="Cinsi">
+            </div>
+            <div class="col">
+                <label>MARKA</label>
+                <input type="text" id="marka" placeholder="Marka">
+            </div>
+            <div class="col">
+                <label>MODEL YILI</label>
+                <input type="text" id="modelYili" placeholder="Örn. 2020">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <label>DURUMU</label>
+                <input type="text" id="durumu" placeholder="Durum">
+            </div>
+            <div class="col">
+                <label>RESMİ/SİVİL</label>
+                <input type="text" id="resmiSivil" placeholder="Resmi/Sivil">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col tam-genis">
+                <label>CİHAZ TÜRÜ (NTP TÜRÜ – tablolardan otomatik veya elle)</label>
+                <input type="text" id="cihazTuru" placeholder="Plaka yazınca otomatik gelir; gelmezse yazın">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <label>SİM NO <span class="blink-dot" title="Zorunlu"></span></label>
+                <input type="text" id="simNo" placeholder="5xxxxxxxxx" maxlength="10" onblur="simNoImeiDoldur()">
+                <p id="simImeiInfo" class="helper" style="display:none;"></p>
+            </div>
+            <div class="col">
+                <label>IMEI NO <span class="blink-dot" title="Zorunlu"></span></label>
+                <input type="text" id="imeiNo" placeholder="IMEI numarası (zorunlu)" onfocus="simNoImeiDoldur()">
+            </div>
+            <div class="col">
+                <label class="ekip-kodu-zorunlu">EKİP KODU <span class="blink-dot" title="Zorunlu"></span> — Ekip Kodu Zorunlu</label>
+                <input type="text" id="ekipKodu" placeholder="Ekip Kodu Zorunlu">
+            </div>
+        </div>
+        <div class="row">
+            <button type="button" class="btn btn-primary" data-action="kaydet" onclick="kaydet()">Kaydet</button>
+            <button type="button" class="btn btn-light" data-action="arsiv" onclick="arsiveTasi()">Arşiv</button>
+            <button type="button" id="btnExcelGonder" class="btn btn-success" data-action="excel-gonder" onclick="excelGonderWhatsApp()" disabled title="Arşivde en az 5 kayıt olunca aktif olur">Excel listesini gönder</button>
+            <button type="button" class="btn btn-light" data-action="mevcut-kayitlar" onclick="mevcutKayitlariGoster()">Mevcut Kayıtlar</button>
+            <button type="button" class="btn btn-light" data-action="yonetici-panel" onclick="yoneticiPaneliAc()">Yönetici Paneli</button>
+        </div>
+        <div class="row">
+            <div class="col wide">
+                <label>BİRİM / KULLANILDIĞI YER ARAMA</label>
+                <input type="text" id="birimArama" placeholder="Örn: Asayiş, Trafik Şube, ASELSAN, ATOSİS, DİĞER ...">
+            </div>
+            <div class="col" style="align-self:flex-end; min-width:140px;">
+                <button type="button" class="btn btn-light" data-action="birim-arama" onclick="birimAramaAc()">Birimdeki Cihazları Göster</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="yoneticiPaneliOverlay" class="modal-overlay" onclick="if(event.target===this) yoneticiPaneliKapat()">
+        <div class="modal-panel">
+            <div class="modal-header">
+                <h3>Yönetici Paneli</h3>
+                <button type="button" class="modal-close" data-action="yonetici-kapat" onclick="yoneticiPaneliKapat()" aria-label="Ana sayfaya dön">✕</button>
+            </div>
+
+            <div class="accordion-item acik" id="acc-veritabanlari">
+                <div class="accordion-head" onclick="accordionToggle('acc-veritabanlari')"><span><span class="icon">📁</span> Veritabanları (gercek.xlsx • CIHAZ TURU • Sim_imei)</span><span class="accordion-icon">▼</span></div>
+                <div class="accordion-body">
+                    <div class="row" style="flex-wrap: wrap; align-items: center; gap: 10px;">
+                        <button type="button" class="btn btn-primary" onclick="veritabanlariniGuncelle()" title="Üç dosyayı tekrar çeker ve hafızayı günceller">Veritabanlarını Güncelle</button>
+                        <span id="listeDurum" class="status-badge empty">—</span>
+                        <span id="durumCihazTuru" class="status-badge empty">—</span>
+                        <span id="durumSimImei" class="status-badge empty">—</span>
+                        <button type="button" class="btn btn-light" onclick="cihazTuruListesiniSifirla()" title="Cihaz türü listesini siler">Cihaz türü sıfırla</button>
+                        <button type="button" class="btn btn-light" onclick="simImeiListesiniSifirla()" title="SIM-IMEI listesini siler">SIM-IMEI sıfırla</button>
+                    </div>
+                    <div class="row" style="margin-top:10px; align-items:center; gap:8px;"><label style="min-width:140px;">gercek.xlsx (elle yükle)</label><div class="file-input-wrap"><input type="file" id="excelAnaListe" accept=".xlsx,.xls" onchange="dosyadanAnaListeYukle(this)"></div></div>
+                    <p class="helper"><strong>Bu Excel’i düzenleyin — </strong> Açılışta <b>gercek.xlsx</b>, <b>CIHAZ TURU.xlsx</b>, <b>Sim_imei.xlsx</b> otomatik yüklenir. gercek.xlsx: RESMİ PLAKA, SİVİL PLAKA, BİRİM (kısa) → Alt Birim, ALT BİRİM (tam isim) → Kullanıldığı Yer, Cinsi, Marka, Model, Durumu, Resmi/Sivil. CIHAZ TURU.xlsx: plaka + NTP türü (ilk 2 satır boş olabilir). SIM → Sim_imei'den IMEI.</p>
+                </div>
+            </div>
+
+            <div class="accordion-item" id="acc-cihaz-turu">
+                <div class="accordion-head" onclick="accordionToggle('acc-cihaz-turu')"><span><span class="icon">📋</span> Cihaz Türü Excel (Plaka - NTP Türü)</span><span class="accordion-icon">▼</span></div>
+                <div class="accordion-body">
+                    <p class="helper">PLAKA ve NTP TÜRÜ sütunları. Cihaz türü plaka girilince otomatik dolar.</p>
+                    <div class="row" style="align-items:center;gap:8px">
+                        <div class="file-input-wrap"><input type="file" id="excelCihazTuru" accept=".xlsx,.xls" onchange="cihazTuruExcelYukle(this)"></div>
+                        <button type="button" class="btn btn-light" onclick="cihazTuruListesiniSifirla()">Sıfırla</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item" id="acc-sim-imei">
+                <div class="accordion-head" onclick="accordionToggle('acc-sim-imei')"><span><span class="icon">📱</span> Varolan Kayıtlar (SIM - IMEI)</span><span class="accordion-icon">▼</span></div>
+                <div class="accordion-body">
+                    <p class="helper">SIM NO ve IMEI sütunları zorunlu. SİM girilince IMEI otomatik dolar.</p>
+                    <div class="row" style="align-items:center; gap:8px;">
+                        <div class="file-input-wrap"><input type="file" id="excelSimImei" accept=".xlsx,.xls" onchange="simImeiExcelYukle(this)"></div>
+                        <button type="button" class="btn btn-light" onclick="simImeiListesiniSifirla()">Sıfırla</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item" id="acc-kaydedilen-cihazlar">
+                <div class="accordion-head" onclick="accordionToggle('acc-kaydedilen-cihazlar')"><span><span class="icon">💾</span> Kaydedilen Cihazlar</span><span class="accordion-icon">▼</span></div>
+                <div class="accordion-body">
+                    <p class="helper">Kaydedilmiş cihazları buradan silebilirsiniz.</p>
+                    <div id="kaydedilenCihazlarListesi" class="table-container">
+                        <!-- Kaydedilen cihazlar buraya gelecek -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(30,64,175,0.6);">
+                <h2>WhatsApp Numaraları</h2>
+                <p class="helper">Excel listesini gönder dediğinizde indirilen dosya bu numaralara açılacak sohbetlerle WhatsApp Web'de açılır. Her satıra bir numara (5xxxxxxxxx veya 05xxxxxxxxx).</p>
+                <textarea id="yoneticiNumaralar" placeholder="Her satıra bir numara: 5321112233 veya 05xx xxx xx xx"></textarea>
+            </div>
+
+            <div class="section" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(30,64,175,0.6);">
+                <h2>HEKDEN GELENLER Listesi</h2>
+                <p class="helper">SİM girildiğinde plaka otomatik dolduğunda veya plaka/birim bu listede varsa uyarı gösterilir. Her satıra bir plaka (örn. 0282) veya birim adı yazın.</p>
+                <textarea id="hekListesi" placeholder="Her satıra plaka veya birim: 0282, ASELSAN, Trafik Şube ..."></textarea>
+            </div>
+
+            <div class="section" style="margin-bottom:4px; padding-bottom:4px; border-bottom:none;">
+                <h2>3. Kayıt ve Arşiv Listesi</h2>
+                <p class="helper">Bugün girilen kayıtlar ve arşivdeki cihazları buradan inceleyebilir, Excel veya PDF olarak alabilirsiniz.</p>
+                <div class="row" style="flex-direction:row; align-items:center; gap:8px; margin-bottom:10px;">
+                    <button class="btn btn-light" style="padding:8px 12px; font-size:12px; white-space:nowrap;" onclick="exceleAktar()">Aktif kayıtları Excel'e aktar</button>
+                    <button class="btn btn-light" style="padding:8px 12px; font-size:12px; white-space:nowrap;" onclick="arsivPdfGoster()">Arşivi PDF olarak göster</button>
+                </div>
+                <div class="row">
+                    <div class="col" style="min-width:0;">
+                        <label>Aktif Kayıtlar</label>
+                        <div id="listeAlani" style="max-height:160px; overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col" style="min-width:0;">
+                        <label>Arşivdeki Kayıtlar</label>
+                        <div id="arsivAlani" style="max-height:160px; overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <button type="button" class="btn btn-primary" onclick="yoneticiNumaralariKaydet(); hekListesiKaydet(); yoneticiPaneliKapat();">Kaydet</button>
+                <button type="button" class="btn btn-light" data-action="yonetici-kapat" onclick="yoneticiPaneliKapat()">Kapat</button>
+                <button type="button" class="btn btn-light" style="margin-left:8px; border-color:rgba(220,38,38,0.6); color:#fca5a5;" onclick="yoneticiVerileriSifirla()" title="Tüm listeler, kayıtlar ve ayarlar silinir. Şifre istenir.">Verileri sıfırla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Birim arama sonuç penceresi -->
+    <div id="birimAramaOverlay" class="modal-overlay" onclick="if(event.target===this) birimAramaKapat()">
+        <div class="modal-panel">
+            <div class="modal-header">
+                <h3>Birimdeki Cihazlar</h3>
+                <button type="button" class="modal-close" onclick="birimAramaKapat()" aria-label="Kapat" title="Kapat">✕</button>
+            </div>
+            <p id="birimAramaBaslik" class="helper"></p>
+            <div id="birimAramaSonuc" style="max-height:320px; overflow:auto; -webkit-overflow-scrolling:touch; overflow-x:auto;"></div>
+            <div style="margin-top:10px; text-align:right;">
+                <button type="button" class="btn btn-light" onclick="birimAramaKapat()">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Birim kayıt kartı (satıra tıklanınca açılır) -->
+    <div id="birimKayitKartOverlay" class="modal-overlay" onclick="if(event.target===this) birimKayitKartKapat()">
+        <div class="modal-panel">
+            <div class="modal-header">
+                <h3>Cihaz Kartı</h3>
+                <button type="button" class="modal-close" onclick="birimKayitKartKapat()" aria-label="Kapat" title="Kapat">✕</button>
+            </div>
+            <div id="birimKayitKartIcerik" class="helper" style="padding:12px; line-height:1.8;"></div>
+            <div style="margin-top:10px; text-align:right;">
+                <button type="button" class="btn btn-light" onclick="birimKayitKartKapat()">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mevcut Kayıtlar modal (zebra tablo) -->
+    <div id="mevcutKayitlarOverlay" class="modal-overlay" onclick="if(event.target===this) mevcutKayitlarKapat()">
+        <div class="modal-panel modal-panel-wide">
+            <div class="modal-header">
+                <h3>Mevcut Kayıtlar</h3>
+                <button type="button" class="modal-close" onclick="mevcutKayitlarKapat()" aria-label="Kapat" title="Kapat">✕</button>
+            </div>
+            <div class="table-wrap-zebra">
+                <div id="mevcutKayitlarIcerik" style="max-height:70vh; overflow:auto; -webkit-overflow-scrolling:touch; overflow-x:auto;"></div>
+            </div>
+            <div style="margin-top:10px; text-align:right;">
+                <button type="button" class="btn btn-light" onclick="mevcutKayitlarKapat()">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Arşivdeki Kayıtlar modal (zebra tablo) -->
+    <div id="arsivKayitlarOverlay" class="modal-overlay" onclick="if(event.target===this) arsivKayitlarKapat()">
+        <div class="modal-panel modal-panel-wide">
+            <div class="modal-header">
+                <h3>Arşivdeki Kayıtlar</h3>
+                <button type="button" class="modal-close" onclick="arsivKayitlarKapat()" aria-label="Kapat" title="Kapat">✕</button>
+            </div>
+            <div class="table-wrap-zebra">
+                <div id="arsivKayitlarIcerik" style="max-height:70vh; overflow:auto; -webkit-overflow-scrolling:touch; overflow-x:auto;"></div>
+            </div>
+            <div style="margin-top:10px; text-align:right;">
+                <button type="button" class="btn btn-light" onclick="arsivKayitlarKapat()">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <p class="helper" style="margin-top:6px;font-size:10px;color:#9ca3af">Nesne Takip v2 — Tek CİHAZ TÜRÜ Excel, plaka 0282/0282A arama, sabit yükleme. Güncel değilse Ctrl+F5 ile yenileyin.</p>
+        </div>
+    </main>
+
+    <div class="bottom-nav" aria-hidden="true">
+        <div class="nav-square"></div>
+        <div class="nav-pill"></div>
+        <div class="nav-circle"></div>
+    </div>
+</div>
+
+<script>
+    // Yeni Excel başlıkları (kalıcı)
+    const ANA_BASLIKLAR = ['KULLANILDIĞI YER', 'CİNSİ', 'MARKA', 'MODEL YILI', 'DURUMU', 'RESMİ/SİVİL', 'PLAKA NO'];
+    const EXPORT_BASLIKLAR = ['S. N.', 'KULLANILDIĞI YER', 'ALT BİRİM', 'SİVİL PLAKA', 'CİNSİ', 'MARKA', 'MODEL YILI', 'DURUMU', 'RESMİ/SİVİL', 'PLAKA NO', 'CİHAZ TÜRÜ', 'EKİP KODU', 'SİM NO', 'IMEI NO'];
+    const GONDER_BASLIKLAR = ['PLAKA', 'BİRİMİ', 'EKİP KODU', 'SİM NO', 'IMEI NO'];
+
+    let PLAKA_VERI = {};  // Ana_Liste.xlsx: plaka -> { kullanildigiYer, altBirim, sivilPlaka, cinsi, marka, modelYili, durumu, resmiSivil }
+    let PLAKA_NTP = {};   // NTP listesi: plaka -> { ntpTur, kullanildigiYer } veya eski format string (ntpTur)
+    let SIM_IMEI = {};    // sim no (10 rakam) -> { imei, plaka } (plaka opsiyonel; Sim_imei.xlsx'te Plaka sütunu varsa dolar)
+    let HEKDEN_GELENLER = [];  // plaka veya birim adı; listede varsa uyarı gösterilir
+    let CIHAZ_TURU_SAYAC = 0;  // Excel'deki gerçek satır sayısı (gösterim için)
+    let KAYITLAR = [];
+    let ARSIV_LOG = [];
+    let SON_BIRIM_ARAMA_KAYITLAR = [];
+    let siraNo = 0;
+    let TOPLAM_CIHAZ = 0;
+
+    // Plaka: tüm boşlukları sil, büyük harfe çevir. "10 A 0041" -> "10A0041", "06 AA 9617" -> "06AA9617"
+    function plakaNormalize(str) {
+        if (str == null || str === '') return '';
+        var s = String(str).trim().replace(/\s/g, '').toUpperCase();
+        s = s.replace(/İ/g, 'I').replace(/ı/g, 'I');
+        return s;
+    }
+
+    function accordionToggle(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.toggle('acik');
+    }
+
+    // Sayısal plakalar için tek biçim: 282 ve 0282 -> "0282" (4 hane)
+    function plakaCanonicalKey(str) {
+        const norm = plakaNormalize(str);
+        if (!norm) return '';
+        if (/^\d+$/.test(norm)) return norm.padStart(4, '0');
+        if (/^\d+A$/i.test(norm)) return norm.replace(/A$/i, '').padStart(4, '0') + 'A';
+        return norm;
+    }
+
+    // Plaka alanı: 4 rakam ise "10 A " + değer; 6 rakam ve 10 ile başlıyorsa "10 A " + son 4 rakam; değilse girilen değer (örn. "06 AA 9617").
+    function getPlakaTam() {
+        var inp = document.getElementById('plaka');
+        if (!inp) return '';
+        var val = (inp.value || '').trim().toUpperCase().replace(/\s/g, '');
+        if (!val) return '';
+        if (/^\d{4}$/.test(val)) return '10 A ' + val;
+        if (/^\d{6}$/.test(val) && val.slice(0, 2) === '10') return '10 A ' + val.slice(2);
+        if (/^\d{2}[A-Z]{2}\d{4}$/.test(val)) return val.slice(0, 2) + ' ' + val.slice(2, 4) + ' ' + val.slice(4);
+        return val;
+    }
+
+    // Plaka: rakam ve harf (10 A 0041 veya 06 AA 9617 formatı için), en fazla 8 karakter
+    function plakaRakamGirildi(inp) {
+        var v = (inp.value || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 8);
+        if (inp.value !== v) inp.value = v;
+    }
+
+    // SİM NO maskesi: (5xx) xxx xx xx — 10 rakam
+    function simNoMask(inp) {
+        let v = (inp.value || '').replace(/\D/g, '');
+        if (v.length > 10) v = v.slice(0, 10);
+        let formatted = '';
+        if (v.length > 0) formatted = '(' + v.slice(0, 1);
+        if (v.length > 1) formatted += v.slice(1, 3);
+        if (v.length > 3) formatted += ') ' + v.slice(3, 6);
+        if (v.length > 6) formatted += ' ' + v.slice(6, 8);
+        if (v.length > 8) formatted += ' ' + v.slice(8, 10);
+        if (inp.value !== formatted) inp.value = formatted;
+        if (v.length === 10) simNoImeiDoldur();
+    }
+
+    // SİM NO alanından sadece rakamları al (kayıt için)
+    function getSimNoRaw() {
+        const inp = document.getElementById('simNo');
+        return inp ? (inp.value || '').replace(/\D/g, '') : '';
+    }
+
+    // Herhangi bir SIM numarasını (Excel veya form) 10 haneli arama anahtarına çevir — (5017224364), 5017224364, (501) 722 43 64 hepsi aynı
+    function simNoToKey(val) {
+        if (val == null) return '';
+        let s = (typeof val === 'number') ? String(Math.floor(val)) : String(val);
+        s = s.replace(/\D/g, '');
+        if (s.length >= 10) return s.slice(-10);
+        return s;
+    }
+
+    // SIM-IMEI tablosunda anahtarlar yanlış formatta yüklenmiş olsa bile (örn. eski kayıtlar, boşluklu / parantezli),
+    // hepsini normalize edip doğru IMEI ve Plaka bilgisini bulmaya çalışan yardımcı. Dönüş: { imei: string, plaka: string }
+    function simNoImeiBul(rawSim) {
+        const key = simNoToKey(rawSim);
+        const empty = { imei: '', plaka: '' };
+        if (!key) return empty;
+        if (!SIM_IMEI) return empty;
+        let val = null;
+        if (Object.prototype.hasOwnProperty.call(SIM_IMEI, key)) {
+            val = SIM_IMEI[key];
+        } else {
+            for (const k in SIM_IMEI) {
+                if (!Object.prototype.hasOwnProperty.call(SIM_IMEI, k)) continue;
+                if (simNoToKey(k) === key) { val = SIM_IMEI[k]; break; }
+            }
+        }
+        if (val == null) return empty;
+        if (typeof val === 'string') return { imei: val, plaka: '' };
+        return { imei: val.imei || '', plaka: val.plaka || '' };
+    }
+
+    // Arama için denenecek anahtarlar (10 A 282 -> 10A282 ve 0282)
+    function plakaAramaAnahtarlari(key) {
+        var keys = [key];
+        if (/^10A\d+$/i.test(key)) keys.push(plakaCanonicalKey(key.replace(/^10A/i, '')));
+        return keys;
+    }
+
+    // Çapraz sorgu: plaka anahtarıyla hem PLAKA_NTP hem PLAKA_VERI'den veri döndürür. Hızlı eşleştirme.
+    function plakaIleCaprazVeri(plakaKey) {
+        var anahtarlar = plakaAramaAnahtarlari(plakaKey);
+        if (anahtarlar.indexOf(plakaKey) === -1) anahtarlar.unshift(plakaKey);
+        var canonical = plakaCanonicalKey(plakaKey);
+        if (anahtarlar.indexOf(canonical) === -1) anahtarlar.push(canonical);
+        if (/^\d+$/.test(plakaKey)) {
+            var pad = plakaKey.replace(/^0+/, '') || '0';
+            pad = pad.length <= 4 ? pad.padStart(4, '0') : pad;
+            if (anahtarlar.indexOf(pad) === -1) anahtarlar.push(pad);
+            if (anahtarlar.indexOf(pad + 'A') === -1) anahtarlar.push(pad + 'A');
+        }
+        var ntp = null;
+        var ana = null;
+        for (var i = 0; i < anahtarlar.length; i++) {
+            var k = anahtarlar[i];
+            if (!ntp && PLAKA_NTP[k]) {
+                ntp = PLAKA_NTP[k];
+                if (typeof ntp === 'string') ntp = { ntpTur: ntp, kullanildigiYer: '' };
+            }
+            if (!ana && PLAKA_VERI[k]) ana = PLAKA_VERI[k];
+        }
+        return { ntp: ntp || { ntpTur: '', kullanildigiYer: '' }, ana: ana || null };
+    }
+
+    function baslikNormalize(str) {
+        if (!str || typeof str !== 'string') return '';
+        return str.toUpperCase()
+            .replace(/İ/g, 'I').replace(/I/g, 'I').replace(/ı/g, 'I')
+            .replace(/Ğ/g, 'G').replace(/Ü/g, 'U').replace(/Ş/g, 'S').replace(/Ö/g, 'O').replace(/Ç/g, 'C');
+    }
+
+    function anaExcelYukle(fileInput) {
+        if (!fileInput || !fileInput.files || !fileInput.files.length) return;
+        if (typeof XLSX === 'undefined') { alert('XLSX kütüphanesi yüklenemedi.'); return; }
+        var file = fileInput.files[0];
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var wb = XLSX.read(e.target.result, { type: 'array' });
+                var ws = wb.Sheets[wb.SheetNames[0]];
+                var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                if (!rows || rows.length < 2) { alert('Excel\'de en az bir veri satırı olmalı.'); return; }
+                var rawHeaders = (rows[0] || []).map(function(h) { return String(h == null ? '' : h).trim(); });
+                var headersNorm = rawHeaders.map(function(h) { return baslikNormalize(h); });
+                var numCols = rawHeaders.length;
+                function idxContains(needle) {
+                    var n = baslikNormalize(needle);
+                    return headersNorm.findIndex(function(h) { return h.indexOf(n) >= 0; });
+                }
+                var idxPlaka = 0, idxKullanildigiYer = 1, idxAltBirim = 2, idxSivilPlaka = 3;
+                if (numCols < 4) { alert('Excel\'de en az 4 sütun olmalı: Plaka (0), Kullanıldığı Yer (1), Alt Birim (2), Sivil Plaka (3).'); return; }
+                var idxCinsi = headersNorm.findIndex(function(h) { return h.indexOf('CINSI') >= 0; });
+                var idxMarka = headersNorm.findIndex(function(h) { return h.indexOf('MARKA') >= 0; });
+                var idxModelYili = headersNorm.findIndex(function(h) { return h.indexOf('MODEL') >= 0 || h.indexOf('YILI') >= 0; });
+                var idxDurumu = headersNorm.findIndex(function(h) { return h.indexOf('DURUMU') >= 0 && h.indexOf('MODEL') < 0; });
+                var idxResmiSivil = headersNorm.findIndex(function(h) { return h.indexOf('RESMI') >= 0 || h.indexOf('SIVIL') >= 0; });
+                PLAKA_VERI = {};
+                for (var r = 1; r < rows.length; r++) {
+                    var row = rows[r] || [];
+                    var plaka = String(row[idxPlaka] != null ? row[idxPlaka] : '').trim();
+                    if (!plaka) continue;
+                    var kullanildigiYer = String(row[idxKullanildigiYer] != null ? row[idxKullanildigiYer] : '').trim();
+                    var altBirim = String(row[idxAltBirim] != null ? row[idxAltBirim] : '').trim();
+                    var sivilPlaka = String(row[idxSivilPlaka] != null ? row[idxSivilPlaka] : '').trim();
+                    var cinsi = idxCinsi >= 0 ? String(row[idxCinsi] != null ? row[idxCinsi] : '').trim() : '';
+                    var marka = idxMarka >= 0 ? String(row[idxMarka] != null ? row[idxMarka] : '').trim() : '';
+                    var modelYili = idxModelYili >= 0 ? String(row[idxModelYili] != null ? row[idxModelYili] : '').trim() : '';
+                    var durumu = idxDurumu >= 0 ? String(row[idxDurumu] != null ? row[idxDurumu] : '').trim() : '';
+                    var resmiSivil = idxResmiSivil >= 0 ? String(row[idxResmiSivil] != null ? row[idxResmiSivil] : '').trim() : '';
+                    var key = plakaNormalize(plaka);
+                    PLAKA_VERI[key] = { kullanildigiYer: kullanildigiYer, altBirim: altBirim, sivilPlaka: sivilPlaka, cinsi: cinsi, marka: marka, modelYili: modelYili, durumu: durumu, resmiSivil: resmiSivil };
+                }
+                var el = document.getElementById('listeDurum');
+                if (el) { el.textContent = Object.keys(PLAKA_VERI).length + ' kayıt (sabit — her açılışta yüklü)'; el.className = 'status-badge loaded'; }
+                localStorage.setItem('nesne_takip_plaka_veri', JSON.stringify(PLAKA_VERI));
+                plakaDegisti();
+            } catch (err) { alert('Excel okunamadı: ' + (err.message || err)); }
+            fileInput.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function cihazTuruExcelYukle(fileInput) {
+        if (!fileInput || !fileInput.files || !fileInput.files.length) return;
+        if (typeof XLSX === 'undefined') { alert('XLSX kütüphanesi yüklenemedi.'); return; }
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                if (!rows || rows.length < 2) { alert('Excel\'de en az bir veri satırı olmalı.'); return; }
+                const rawHeaders = (rows[0] || []).map(h => String(h == null ? '' : h).trim());
+                const headersNorm = rawHeaders.map(h => baslikNormalize(h));
+                var idxPlaka = headersNorm.findIndex(function(h) { return h.indexOf('PLAKA') >= 0 && h.indexOf('SIVIL') < 0; });
+                if (idxPlaka < 0) idxPlaka = headersNorm.findIndex(function(h) { return h.indexOf('PLAKA') >= 0; });
+                var idxNtp = headersNorm.findIndex(function(h) { return h.indexOf('NTP') >= 0 && h.indexOf('TURU') >= 0; });
+                var idxKullanildigiYer = headersNorm.findIndex(function(h) { return h.indexOf('KULLANILDI') >= 0 || h.indexOf('YER') >= 0; });
+                if (idxPlaka < 0 && rawHeaders.length >= 1) idxPlaka = 0;
+                if (idxNtp < 0 && rawHeaders.length >= 2) idxNtp = 1;
+                if (idxPlaka < 0 || idxNtp < 0) { alert('Excel\'de PLAKA ve NTP TÜRÜ sütunları olmalı (veya 1. ve 2. sütun).'); return; }
+                PLAKA_NTP = {};
+                var sayac = 0;
+                for (var r = 1; r < rows.length; r++) {
+                    var row = rows[r] || [];
+                    var plaka = String(row[idxPlaka] != null ? row[idxPlaka] : '').trim();
+                    var ntpTur = String(row[idxNtp] != null ? row[idxNtp] : '').trim();
+                    var kullanildigiYer = (idxKullanildigiYer >= 0 && row[idxKullanildigiYer] != null) ? String(row[idxKullanildigiYer]).trim() : '';
+                    if (!plaka || !ntpTur) continue;
+                    var key = plakaNormalize(plaka);
+                    if (!key) key = plakaCanonicalKey(plaka);
+                    var ntpKayit = { ntpTur: ntpTur, kullanildigiYer: kullanildigiYer };
+                    PLAKA_NTP[key] = ntpKayit;
+                    if (/^\d{4}$/.test(key)) PLAKA_NTP['10A' + key] = ntpKayit;
+                    sayac++;
+                }
+                CIHAZ_TURU_SAYAC = sayac;
+                const el = document.getElementById('durumCihazTuru');
+                if (el) { el.textContent = sayac + ' plaka (sabit — her açılışta yüklü)'; el.className = 'status-badge loaded'; }
+                localStorage.setItem('nesne_takip_plaka_ntp', JSON.stringify(PLAKA_NTP));
+                localStorage.setItem('nesne_takip_cihaz_turu_sayac', String(sayac));
+                plakaDegisti();
+                fileInput.value = '';
+            } catch (err) { alert('Excel okunamadı: ' + (err.message || err)); }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function cihazTuruListesiniSifirla() {
+        PLAKA_NTP = {};
+        CIHAZ_TURU_SAYAC = 0;
+        localStorage.removeItem('nesne_takip_plaka_ntp');
+        localStorage.removeItem('nesne_takip_cihaz_turu_sayac');
+        const dc = document.getElementById('durumCihazTuru');
+        if (dc) { dc.textContent = 'Dosya seçilmedi'; dc.className = 'status-badge empty'; }
+        const fileInput = document.getElementById('excelCihazTuru');
+        if (fileInput) fileInput.value = '';
+        document.getElementById('cihazTuru').value = '';
+        guncelleSayac();
+    }
+
+    function simImeiExcelYukle(fileInput) {
+        if (!fileInput || !fileInput.files || !fileInput.files.length) return;
+        if (typeof XLSX === 'undefined') { alert('XLSX kütüphanesi yüklenemedi.'); return; }
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                if (!rows || rows.length < 2) { alert('Excel\'de en az bir veri satırı olmalı.'); return; }
+                const rawHeaders = (rows[0] || []).map(h => String(h == null ? '' : h).trim());
+                const headersNorm = rawHeaders.map(h => baslikNormalize(h));
+                let idxSim = headersNorm.findIndex(h => h.indexOf('SIM') >= 0 || h.indexOf('SIM NO') >= 0);
+                let idxImei = headersNorm.findIndex(h => h.indexOf('IMEI') >= 0);
+                let idxPlaka = headersNorm.findIndex(h => h.indexOf('PLAKA') >= 0);
+                if (idxSim < 0) idxSim = 0;
+                if (idxImei < 0) idxImei = 1;
+                SIM_IMEI = {};
+                let sayac = 0;
+                for (let r = 1; r < rows.length; r++) {
+                    const row = rows[r] || [];
+                    const simHam = row[idxSim];
+                    const imei = String(row[idxImei] != null ? row[idxImei] : '').trim();
+                    const plaka = idxPlaka >= 0 ? String(row[idxPlaka] != null ? row[idxPlaka] : '').trim() : '';
+                    const key = simNoToKey(simHam);
+                    if (key.length >= 10 && imei) {
+                        SIM_IMEI[key] = { imei: imei, plaka: plaka };
+                        sayac++;
+                    }
+                }
+                const el = document.getElementById('durumSimImei');
+                let durumText = sayac + ' kayıt (sabit — her açılışta yüklü)';
+                if (idxPlaka >= 0) durumText += ' • Plaka sütunu var';
+                if (el) { el.textContent = durumText; el.className = 'status-badge loaded'; }
+                localStorage.setItem('nesne_takip_sim_imei', JSON.stringify(SIM_IMEI));
+                fileInput.value = '';
+            } catch (err) { alert('Excel okunamadı: ' + (err.message || err)); }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function simImeiListesiniSifirla() {
+        SIM_IMEI = {};
+        localStorage.removeItem('nesne_takip_sim_imei');
+        const el = document.getElementById('durumSimImei');
+        if (el) { el.textContent = 'Dosya seçilmedi'; el.className = 'status-badge empty'; }
+        const fileInput = document.getElementById('excelSimImei');
+        if (fileInput) fileInput.value = '';
+    }
+
+    // Ana_Liste.xlsx -> PLAKA_VERI (başlık varsa başlığa göre, yoksa sabit sıra: 0=PLAKA, 1=KULLANILDIĞI YER, 2=ALT BİRİM, 3=SİVİL PLAKA, 4=CİNSİ, 5=MARKA, 6=MODEL YILI, 7=DURUMU, 8=RESMİ/SİVİL)
+    function filtreListeArrayBufferYukle(ab) {
+        if (typeof XLSX === 'undefined') return false;
+        try {
+            var wb = XLSX.read(ab, { type: 'array' });
+            var sheetName = wb.SheetNames[0];
+            for (var i = 0; i < wb.SheetNames.length; i++) {
+                var nm = (wb.SheetNames[i] || '').toString();
+                if (baslikNormalize(nm).indexOf('BIRIMLI') >= 0) { sheetName = wb.SheetNames[i]; break; }
+            }
+            var ws = wb.Sheets[sheetName];
+            var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            if (!rows || rows.length < 2) return false;
+            var firstRow = (rows[0] || []).map(function(v) { return String(v == null ? '' : v).trim(); });
+            var headersNorm = firstRow.map(function(h) { return baslikNormalize(h); });
+            var ilkSatirBaslikMi = headersNorm.some(function(h) {
+                return h.indexOf('PLAKA') >= 0 || h.indexOf('BIRIM') >= 0 || h.indexOf('KULLANILDI') >= 0 || h.indexOf('YER') >= 0 || h.indexOf('MARKA') >= 0 || h.indexOf('CINSI') >= 0 || h.indexOf('SIVIL') >= 0 || h.indexOf('MODEL') >= 0;
+            });
+            // Varsayılan sıra (başlık yoksa): 0=PLAKA, 1=KULLANILDIĞI YER, 2=ALT BİRİM, 3=SİVİL PLAKA, 4=CİNSİ, 5=MARKA, 6=MODEL YILI, 7=DURUMU, 8=RESMİ/SİVİL, 9=CİHAZ TÜRÜ
+            var idxPlaka = 0, idxKullanildigiYer = 1, idxAltBirim = 2, idxSivilPlaka = 3, idxCinsi = 4, idxMarka = 5, idxModelYili = 6, idxDurumu = 7, idxResmiSivil = 8, idxCihazTuru = 9;
+            if (ilkSatirBaslikMi) {
+                // Özel gercek.xlsx formatı: RESMİ PLAKA, SİVİL PLAKA, KULLANILDIĞI YER, ALT BİRİM, CİNSİ, MARKA, MODEL YILI, DURUMU, RESMİ/SİVİL, CİHAZ TÜRÜ
+                var gercekFormat = !!(headersNorm[0] && headersNorm[0].indexOf('RESMI') >= 0 && headersNorm[0].indexOf('PLAKA') >= 0 &&
+                    headersNorm[2] && headersNorm[2].indexOf('KULLANILDIGI') >= 0 &&
+                    headersNorm[3] && headersNorm[3].indexOf('ALT') >= 0 &&
+                    headersNorm[8] && headersNorm[8].indexOf('RESMI') >= 0 && headersNorm[8].indexOf('SIVIL') >= 0);
+                if (gercekFormat) {
+                    // gercek.xlsx sabit sütunları
+                    idxPlaka = 0;
+                    idxSivilPlaka = 1;
+                    idxKullanildigiYer = 2;
+                    idxAltBirim = 3;
+                    idxCinsi = 4;
+                    idxMarka = 5;
+                    idxModelYili = 6;
+                    idxDurumu = 7;
+                    idxResmiSivil = 8;
+                    idxCihazTuru = 9;
+                } else {
+                    function idxBul(aranan) { return headersNorm.findIndex(function(h) { return h.indexOf(aranan) >= 0; }); }
+                    var ip = headersNorm.findIndex(function(h) { return h.indexOf('PLAKA') >= 0 && h.indexOf('SIVIL') < 0; });
+                    if (ip >= 0) idxPlaka = ip;
+                    var ik = idxBul('KULLANILDI');
+                    if (ik < 0) ik = headersNorm.findIndex(function(h) { return h.indexOf('YER') >= 0 && h.indexOf('KULLANILDI') >= 0; });
+                    if (ik >= 0) idxKullanildigiYer = ik;
+                    var ia = idxBul('ALT');
+                    if (ia < 0) ia = headersNorm.findIndex(function(h) { return h.indexOf('BIRIM') >= 0 && h.indexOf('ALT') >= 0; });
+                    if (ia < 0) ia = headersNorm.findIndex(function(h) { return h === 'ALT BIRIM' || (h.indexOf('BIRIM') >= 0 && h.indexOf('KULLANILDI') < 0); });
+                    if (ia >= 0) idxAltBirim = ia;
+                    var isp = headersNorm.findIndex(function(h) { return h.indexOf('SIVIL') >= 0 && h.indexOf('PLAKA') >= 0; });
+                    if (isp >= 0) idxSivilPlaka = isp;
+                    var ic = idxBul('CINSI'); if (ic >= 0) idxCinsi = ic;
+                    var im = idxBul('MARKA'); if (im >= 0) idxMarka = im;
+                    var imy = idxBul('MODEL'); if (imy < 0) imy = idxBul('YILI'); if (imy >= 0) idxModelYili = imy;
+                    var id = idxBul('DURUMU'); if (id < 0) id = idxBul('DURUM'); if (id >= 0) idxDurumu = id;
+                    var ir = headersNorm.findIndex(function(h) { return h.indexOf('RESMI') >= 0 && h.indexOf('SIVIL') >= 0; });
+                    if (ir >= 0) idxResmiSivil = ir;
+                    var icihaz = headersNorm.findIndex(function(h) { return h.indexOf('CIHAZ') >= 0 && h.indexOf('TURU') >= 0; });
+                    if (icihaz >= 0) idxCihazTuru = icihaz;
+                }
+            }
+            var idxAktifKullanilanBirim = headersNorm.findIndex(function(h) {
+                if (!h) return false;
+                var u = ('' + h).toUpperCase().replace(/\u0130/g, 'I').replace(/ı/g, 'I').replace(/i/g, 'I');
+                return (u.indexOf('AKTIF') >= 0 && u.indexOf('BIRIM') >= 0) || (u.indexOf('AKTIF') >= 0 && u.indexOf('KULLANILAN') >= 0);
+            });
+            if (idxAktifKullanilanBirim < 0 && ilkSatirBaslikMi) { idxAktifKullanilanBirim = 10; }
+            var dataStart = ilkSatirBaslikMi ? 1 : 0;
+            PLAKA_VERI = {};
+            for (var r = dataStart; r < rows.length; r++) {
+                var row = rows[r] || [];
+                var plaka = String(row[idxPlaka] != null ? row[idxPlaka] : '').trim();
+                if (!plaka) continue;
+                function cell(i) { return row.length > i && row[i] != null ? String(row[i]).trim() : ''; }
+                var kullanildigiYer = cell(idxKullanildigiYer);
+                var altBirim = cell(idxAltBirim);
+                var sivilPlakaVal = cell(idxSivilPlaka);
+                var kayit = {
+                    kullanildigiYer: kullanildigiYer,
+                    altBirim: altBirim,
+                    sivilPlaka: sivilPlakaVal,
+                    cinsi: cell(idxCinsi),
+                    marka: cell(idxMarka),
+                    modelYili: cell(idxModelYili),
+                    durumu: cell(idxDurumu),
+                    resmiSivil: cell(idxResmiSivil),
+                    cihazTuru: cell(idxCihazTuru),
+                    aktifKullanilanBirim: idxAktifKullanilanBirim >= 0 ? cell(idxAktifKullanilanBirim) : ''
+                };
+                var key = plakaNormalize(plaka);
+                if (key) {
+                    PLAKA_VERI[key] = kayit;
+                    if (/^\d{4}$/.test(key)) PLAKA_VERI['10A' + key] = kayit;
+                }
+                var sKey = plakaNormalize(sivilPlakaVal);
+                if (sKey && !PLAKA_VERI[sKey]) PLAKA_VERI[sKey] = kayit;
+            }
+            localStorage.setItem('nesne_takip_plaka_veri', JSON.stringify(PLAKA_VERI));
+            var el = document.getElementById('listeDurum');
+            if (el) { el.textContent = Object.keys(PLAKA_VERI).length + ' kayıt (gercek.xlsx)'; el.className = 'status-badge loaded'; }
+            plakaDegisti();
+            return true;
+        } catch (e) { return false; }
+    }
+
+    // Dosyadan Ana_Liste.xlsx yükle (Yönetici paneli - elle seçim)
+    function dosyadanAnaListeYukle(input) {
+        if (!input || !input.files || !input.files[0]) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            if (filtreListeArrayBufferYukle(e.target.result)) {
+                if (input) input.value = '';
+            } else { alert('gercek.xlsx okunamadı. Sütunlar: RESMİ PLAKA, SİVİL PLAKA, BİRİM (KULLANILDIĞI YER), ALT BİRİM, CİNSİ, MARKA, MODEL YILI, DURUMU, RESMİ/SİVİL'); }
+        };
+        reader.readAsArrayBuffer(input.files[0]);
+    }
+
+    function cihazTuruArrayBufferYukle(ab) {
+        if (typeof XLSX === 'undefined') return false;
+        try {
+            var wb = XLSX.read(ab, { type: 'array' });
+            var ws = wb.Sheets[wb.SheetNames[0]];
+            var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            if (!rows || rows.length < 1) return false;
+            var idxPlaka = 0, idxNtp = 1, dataStart = 0;
+            var row0 = (rows[0] || []).map(function(v) { return String(v == null ? '' : v).trim(); });
+            var row0Norm = row0.map(function(h) { return baslikNormalize(h); });
+            var ilkSatirBaslik = row0Norm.some(function(h) { return h.indexOf('PLAKA') >= 0 || h.indexOf('NTP') >= 0 || h.indexOf('CIHAZ') >= 0; });
+            if (ilkSatirBaslik) {
+                var ip = row0Norm.findIndex(function(h) { return h.indexOf('PLAKA') >= 0 && h.indexOf('SIVIL') < 0; });
+                if (ip >= 0) idxPlaka = ip;
+                var inpt = row0Norm.findIndex(function(h) { return (h.indexOf('NTP') >= 0 && h.indexOf('TURU') >= 0) || (h.indexOf('CIHAZ') >= 0 && h.indexOf('TURU') >= 0); });
+                if (inpt < 0) inpt = row0Norm.findIndex(function(h) { return h.indexOf('ASELSAN') >= 0 || h.indexOf('MARKA') >= 0; });
+                if (inpt >= 0) idxNtp = inpt;
+                dataStart = 1;
+            } else {
+                for (var s = 0; s < Math.min(10, rows.length); s++) {
+                    var r = rows[s] || [];
+                    var a = String(r[0] != null ? r[0] : '').trim();
+                    var b = String(r[1] != null ? r[1] : '').trim();
+                    if (a && b) { dataStart = s; break; }
+                }
+            }
+            PLAKA_NTP = {};
+            var sayac = 0;
+            for (var r = dataStart; r < rows.length; r++) {
+                var row = rows[r] || [];
+                var plaka = String(row[idxPlaka] != null ? row[idxPlaka] : '').trim().replace(/\r\n/g, ' ');
+                var ntpTur = String(row[idxNtp] != null ? row[idxNtp] : '').trim().replace(/\r\n/g, ' ');
+                if (!plaka || !ntpTur) continue;
+                var key = plakaNormalize(plaka);
+                if (!key) key = plakaCanonicalKey(plaka);
+                var ntpKayit = { ntpTur: ntpTur, kullanildigiYer: '' };
+                PLAKA_NTP[key] = ntpKayit;
+                if (/^\d{4}$/.test(key)) PLAKA_NTP['10A' + key] = ntpKayit;
+                sayac++;
+            }
+            CIHAZ_TURU_SAYAC = sayac;
+            localStorage.setItem('nesne_takip_plaka_ntp', JSON.stringify(PLAKA_NTP));
+            localStorage.setItem('nesne_takip_cihaz_turu_sayac', String(sayac));
+            var el = document.getElementById('durumCihazTuru');
+            if (el) { el.textContent = sayac + ' plaka (CIHAZ TURU)'; el.className = 'status-badge loaded'; }
+            return true;
+        } catch (e) { return false; }
+    }
+
+    function simImeiArrayBufferYukle(ab) {
+        if (typeof XLSX === 'undefined') return false;
+        try {
+            var wb = XLSX.read(ab, { type: 'array' });
+            var ws = wb.Sheets[wb.SheetNames[0]];
+            var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            if (!rows || rows.length < 2) return false;
+            var headersNorm = (rows[0] || []).map(function(h) { return baslikNormalize(String(h == null ? '' : h).trim()); });
+            var idxSim = headersNorm.findIndex(function(h) { return h.indexOf('SIM') >= 0; });
+            if (idxSim < 0) idxSim = 0;
+            var idxImei = headersNorm.findIndex(function(h) { return h.indexOf('IMEI') >= 0; });
+            if (idxImei < 0) idxImei = 1;
+            var idxPlaka = headersNorm.findIndex(function(h) { return h.indexOf('PLAKA') >= 0; });
+            SIM_IMEI = {};
+            var sayac = 0;
+            for (var r = 1; r < rows.length; r++) {
+                var row = rows[r] || [];
+                var simHam = row[idxSim];
+                var imei = String(row[idxImei] != null ? row[idxImei] : '').trim();
+                var plaka = idxPlaka >= 0 ? String(row[idxPlaka] != null ? row[idxPlaka] : '').trim() : '';
+                var key = simNoToKey(simHam);
+                if (key.length >= 10 && imei) { SIM_IMEI[key] = { imei: imei, plaka: plaka }; sayac++; }
+            }
+            localStorage.setItem('nesne_takip_sim_imei', JSON.stringify(SIM_IMEI));
+            var el = document.getElementById('durumSimImei');
+            if (el) { el.textContent = sayac + ' kayıt (Sim_imei)'; el.className = 'status-badge loaded'; }
+            return true;
+        } catch (e) { return false; }
+    }
+
+    function veritabanlariniGuncelle() {
+        var base = window.location.href.replace(/[^/]*$/, '');
+        var dosyalar = [
+            { url: base + 'gercek.xlsx', fn: filtreListeArrayBufferYukle, durumId: 'listeDurum' },
+            { url: base + 'CIHAZ TURU.xlsx', fn: cihazTuruArrayBufferYukle, durumId: 'durumCihazTuru' },
+            { url: base + 'Sim_imei.xlsx', fn: simImeiArrayBufferYukle, durumId: 'durumSimImei' }
+        ];
+        function birTaneYukle(d) {
+            return fetch(d.url).then(function(r) { return r.ok ? r.arrayBuffer() : Promise.reject(); }).then(function(ab) {
+                return d.fn(ab) ? true : false;
+            }).catch(function() {
+                var el = document.getElementById(d.durumId);
+                if (el) { el.textContent = 'Yüklenemedi: ' + d.url.split('/').pop(); el.className = 'status-badge empty'; }
+                return false;
+            });
+        }
+        Promise.all(dosyalar.map(birTaneYukle)).then(function() {
+            plakaDegisti();
+            guncelleSayac();
+        });
+    }
+
+    // HEK listesinde mi kontrol et (plaka veya kullanıldığı yer)
+    function hekListesindeMi(plakaTam, kullanildigiYer) {
+        if (!HEKDEN_GELENLER || !HEKDEN_GELENLER.length) return false;
+        const plakaNorm = plakaNormalize(plakaTam || '');
+        const plakaRakam = (plakaTam || '').replace(/\D/g, '') || '';
+        const birimNorm = String(kullanildigiYer || '').trim().toUpperCase();
+        for (let i = 0; i < HEKDEN_GELENLER.length; i++) {
+            const h = String(HEKDEN_GELENLER[i] || '').trim();
+            if (!h) continue;
+            const hNorm = h.toUpperCase();
+            if (plakaNorm && plakaNorm.indexOf(hNorm) !== -1) return true;
+            if (plakaRakam && h.replace(/\D/g, '').indexOf(plakaRakam) !== -1) return true;
+            if (plakaRakam && plakaRakam.indexOf(h.replace(/\D/g, '')) !== -1) return true;
+            if (birimNorm && birimNorm.indexOf(hNorm) !== -1) return true;
+        }
+        return false;
+    }
+
+    // SİM NO 10 hane olduğunda: IMEI doldur; SIM_IMEI'de plaka varsa plakayı yazıp plakaDegisti() tetikle; HEK listesindeyse uyarı göster
+    function simNoImeiDoldur() {
+        const raw = getSimNoRaw();
+        if (raw.length < 10) return;
+        const bulunan = simNoImeiBul(raw);
+        const imei = bulunan.imei;
+        const plakaDeger = bulunan.plaka;
+        const infoEl = document.getElementById('simImeiInfo');
+        if (infoEl) {
+            const key = simNoToKey(raw);
+            const kayitSayisi = SIM_IMEI ? Object.keys(SIM_IMEI).length : 0;
+            let msg = kayitSayisi === 0
+                ? 'Sim_imei.xlsx yüklü değil. Yönetici Paneli > Sim_imei.xlsx dosyasını seçin.'
+                : 'SIM-IMEI listesi: ' + kayitSayisi + ' kayıt. Aranan SIM: ' + key + '. ' + (imei ? 'IMEI: ' + imei : 'Bu SIM için IMEI bulunamadı.') + (plakaDeger ? ' Plaka: ' + plakaDeger : '');
+            infoEl.textContent = msg;
+            infoEl.style.display = 'block';
+        }
+        const inp = document.getElementById('imeiNo');
+        if (inp) {
+            // IMEI bulunduysa yaz, bulunamadıysa alanı temizle
+            inp.value = imei || '';
+        }
+        if (plakaDeger) {
+            var dig = String(plakaDeger).replace(/\D/g, '');
+            var plakaRakam = dig;
+            if (dig.length > 4 && dig.indexOf('10') === 0) plakaRakam = dig.slice(2);
+            else if (dig.length > 4) plakaRakam = dig.slice(-4);
+            if (plakaRakam) {
+                var plakaInp = document.getElementById('plaka');
+                if (plakaInp) {
+                    plakaInp.value = plakaRakam;
+                    plakaDegisti();
+                }
+            }
+        }
+        if (plakaDeger || imei) {
+            var plakaTam = getPlakaTam();
+            var kullanildigiYer = (document.getElementById('kullanildigiYer') || {}).value || '';
+            if (hekListesindeMi(plakaTam, kullanildigiYer)) {
+                alert('⚠️ HEKDEN GELENLER: Bu plaka / birim HEK listesinde yer alıyor. Lütfen kontrol edin.');
+            }
+        }
+    }
+
+    function ntpBul(key) {
+        if (!key) return '';
+        var val;
+        var anahtarlar = plakaAramaAnahtarlari(key);
+        for (var i = 0; i < anahtarlar.length; i++) {
+            val = PLAKA_NTP[anahtarlar[i]];
+            if (val) break;
+        }
+        if (!val) {
+            var canonical = plakaCanonicalKey(key);
+            val = PLAKA_NTP[canonical];
+        }
+        if (!val) return '';
+        return typeof val === 'string' ? val : (val.ntpTur || '');
+    }
+
+    function plakaDegisti() {
+        var tamPlaka = getPlakaTam();
+        var key = plakaNormalize(tamPlaka);
+        var capraz = plakaIleCaprazVeri(key);
+        var ntp = capraz.ntp;
+        var ana = capraz.ana;
+        var elKullanildigiYer = document.getElementById('kullanildigiYer');
+        var elAltBirim = document.getElementById('altBirim');
+        var elSivilPlaka = document.getElementById('sivilPlaka');
+        var elCinsi = document.getElementById('cinsi');
+        var elMarka = document.getElementById('marka');
+        var elModelYili = document.getElementById('modelYili');
+        var elDurumu = document.getElementById('durumu');
+        var elResmiSivil = document.getElementById('resmiSivil');
+        var elCihazTuru = document.getElementById('cihazTuru');
+        var uyariEl = document.getElementById('plakaVeriUyari');
+        function str(v) { return (v != null && v !== undefined) ? String(v) : ''; }
+        if (typeof console !== 'undefined' && console.log) {
+            console.log('Aranan: [' + key + '] - Durum: ' + (ntp.ntpTur || ana ? 'Bulundu' : 'Bulunamadı') + ' (NTP: ' + (ntp.ntpTur ? 'var' : 'yok') + ', Ana: ' + (ana ? 'var' : 'yok') + ')');
+        }
+        // Cihaz Türü: önce gercek.xlsx içindeki cihazTuru, yoksa CIHAZ TURU listesinden
+        // Eğer cihazTuru ile resmiSivil aynıysa (yanlış sütun okunmuş olabilir), NTP listesinden al
+        var cihazVal = ana && ana.cihazTuru ? str(ana.cihazTuru) : str(ntp.ntpTur);
+        if (ana && ana.cihazTuru && ana.resmiSivil && String(ana.cihazTuru).trim() === String(ana.resmiSivil).trim()) {
+            cihazVal = str(ntp.ntpTur);
+        }
+        if (elCihazTuru) elCihazTuru.value = cihazVal;
+        // Araç bilgileri gercek.xlsx (veya Ana_Liste) kaydından
+        if (elKullanildigiYer) elKullanildigiYer.value = ana ? str(ana.kullanildigiYer) : '';
+        if (elAltBirim) elAltBirim.value = ana ? str(ana.altBirim) : '';
+        if (elSivilPlaka) elSivilPlaka.value = ana ? str(ana.sivilPlaka) : '';
+        if (elCinsi) elCinsi.value = ana ? str(ana.cinsi) : '';
+        if (elMarka) elMarka.value = ana ? str(ana.marka) : '';
+        if (elModelYili) elModelYili.value = ana ? str(ana.modelYili) : '';
+        if (elDurumu) elDurumu.value = ana ? str(ana.durumu) : '';
+        if (elResmiSivil) elResmiSivil.value = ana ? str(ana.resmiSivil) : '';
+        var elAktifBirim = document.getElementById('aktifKullanilanBirim');
+        if (elAktifBirim) {
+            var aktifBirimVal = ana && ana.aktifKullanilanBirim ? str(ana.aktifKullanilanBirim) : '';
+            elAktifBirim.value = aktifBirimVal;
+            if (aktifBirimVal) elAktifBirim.classList.add('aktif-birim-dolu'); else elAktifBirim.classList.remove('aktif-birim-dolu');
+        }
+        if (uyariEl) {
+            if (key && !ana) {
+                uyariEl.textContent = (Object.keys(PLAKA_VERI || {}).length === 0 ? 'Veritabanı yüklü değil. ' : 'Bu plaka bulunamadı. ') + 'Yönetici Paneli > gercek.xlsx ve CIHAZ TURU.xlsx yükleyin.';
+                uyariEl.style.display = 'block';
+                uyariEl.style.color = '#f59e0b';
+            } else {
+                uyariEl.style.display = 'none';
+            }
+        }
+    }
+
+    function kaydet() {
+        const plaka = getPlakaTam();
+
+        // Mükerrer kayıt kontrolü
+        const isDuplicate = KAYITLAR.some(kayit => plakaNormalize(kayit.plaka) === plakaNormalize(plaka));
+        if (isDuplicate) {
+            alert('Mükerrer kayıt! Bu plaka zaten mevcut.');
+            return;
+        }
+
+        const kullanildigiYer = document.getElementById('kullanildigiYer').value.trim();
+        const altBirim = (document.getElementById('altBirim') && document.getElementById('altBirim').value) ? document.getElementById('altBirim').value.trim() : '';
+        const sivilPlaka = (document.getElementById('sivilPlaka') && document.getElementById('sivilPlaka').value) ? document.getElementById('sivilPlaka').value.trim() : '';
+        const cinsi = document.getElementById('cinsi').value.trim();
+        const marka = document.getElementById('marka').value.trim();
+        const modelYili = document.getElementById('modelYili').value.trim();
+        const durumu = document.getElementById('durumu').value.trim();
+        const resmiSivil = document.getElementById('resmiSivil').value.trim();
+        const cihazTuru = document.getElementById('cihazTuru').value.trim();
+        const ekipKodu = (document.getElementById('ekipKodu') && document.getElementById('ekipKodu').value) ? document.getElementById('ekipKodu').value.trim() : '';
+        const simNo = document.getElementById('simNo').value.trim();
+        const imeiNo = document.getElementById('imeiNo').value.trim();
+        if (getSimNoRaw().length !== 10) { alert('SİM NO zorunludur (10 hane olmalı: 5xx xxx xx xx).'); return; }
+        if (!imeiNo) { alert('IMEI NO zorunludur.'); return; }
+        if (!ekipKodu) { alert('Ekip kodu zorunludur.'); return; }
+        siraNo++;
+        const kayit = { sNo: siraNo, plaka, kullanildigiYer, altBirim, sivilPlaka, cinsi, marka, modelYili, durumu, resmiSivil, cihazTuru, ekipKodu, simNo, imeiNo };
+        KAYITLAR.push(kayit);
+        localStorage.setItem('nesne_takip_kayitlar', JSON.stringify(KAYITLAR));
+        localStorage.setItem('nesne_takip_sira_no', String(siraNo));
+        listeyiCiz();
+        
+        const lastPlaka = plaka; // Son kaydedilen plakayı al
+
+        document.getElementById('cinsi').value = '';
+        document.getElementById('marka').value = '';
+        document.getElementById('modelYili').value = '';
+        document.getElementById('durumu').value = '';
+        document.getElementById('resmiSivil').value = '';
+        document.getElementById('ekipKodu').value = '';
+        document.getElementById('simNo').value = '';
+        document.getElementById('imeiNo').value = '';
+        
+        // Plaka alanını temizle
+        document.getElementById('plaka').value = '';
+        // Son kaydedilen plakayı göster
+        document.getElementById('lastSavedPlakaInfo').textContent = `Son kaydedilen: ${lastPlaka.toLowerCase()}`;
+
+        guncelleSayac();
+        simNoImeiDoldur(); // Call simNoImeiDoldur after validation and saving
+    }
+
+    function listeyiCiz() {
+        const alan = document.getElementById('listeAlani');
+        if (!alan) return;
+        if (!KAYITLAR.length) { alan.innerHTML = '<p class="helper">Henüz kayıt yok.</p>'; return; }
+        let html = '<table class="table-zebra"><thead><tr>';
+        EXPORT_BASLIKLAR.forEach(h => { html += '<th>' + h + '</th>'; });
+        html += '</tr></thead><tbody>';
+        KAYITLAR.forEach(k => {
+            html += '<tr><td>' + (k.sNo || '') + '</td><td>' + (k.kullanildigiYer || '') + '</td><td>' + (k.altBirim || '') + '</td><td>' + (k.sivilPlaka || '') + '</td><td>' + (k.cinsi || '') + '</td><td>' + (k.marka || '') + '</td><td>' + (k.modelYili || '') + '</td><td>' + (k.durumu || '') + '</td><td>' + (k.resmiSivil || '') + '</td><td>' + (k.plaka || '') + '</td><td>' + (k.cihazTuru || '') + '</td><td>' + (k.ekipKodu || '') + '</td><td>' + (k.simNo || '') + '</td><td>' + (k.imeiNo || '') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        alan.innerHTML = html;
+    }
+
+    function arsiviCiz() {
+        const alan = document.getElementById('arsivAlani');
+        if (!alan) return;
+        if (!ARSIV_LOG.length) { alan.innerHTML = '<p class="helper">Arşivde kayıt yok.</p>'; return; }
+        let html = '<table class="table-zebra"><thead><tr>';
+        html += '<th>S. N.</th><th>BİRİMİ</th><th>ALT BİRİM</th><th>SİVİL PLAKA</th><th>PLAKA</th><th>CİNSİ</th><th>MARKA</th><th>MODEL</th><th>DURUM</th><th>RESMİ/SİVİL</th><th>CİHAZ TÜRÜ</th><th>EKİP KODU</th><th>SİM NO</th><th>IMEI NO</th>';
+        html += '</tr></thead><tbody>';
+        ARSIV_LOG.forEach(k => {
+            html += '<tr><td>' + (k.sNo || '') + '</td><td>' + (k.kullanildigiYer || '') + '</td><td>' + (k.altBirim || '') + '</td><td>' + (k.sivilPlaka || '') + '</td><td>' + (k.plaka || '') + '</td><td>' + (k.cinsi || '') + '</td><td>' + (k.marka || '') + '</td><td>' + (k.modelYili || '') + '</td><td>' + (k.durumu || '') + '</td><td>' + (k.resmiSivil || '') + '</td><td>' + (k.cihazTuru || '') + '</td><td>' + (k.ekipKodu || '') + '</td><td>' + (k.simNo || '') + '</td><td>' + (k.imeiNo || '') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        alan.innerHTML = html;
+    }
+
+    function exceleAktar() {
+        if (!KAYITLAR.length) { alert('Aktarılacak kayıt yok.'); return; }
+        if (typeof XLSX === 'undefined') { alert('XLSX kütüphanesi yüklenemedi.'); return; }
+        const rows = KAYITLAR.map(k => [
+            k.sNo || '', k.kullanildigiYer || '', k.altBirim || '', k.sivilPlaka || '', k.cinsi || '', k.marka || '', k.modelYili || '', k.durumu || '', k.resmiSivil || '', k.plaka || '', k.cihazTuru || '', k.ekipKodu || '', k.simNo || '', k.imeiNo || ''
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([EXPORT_BASLIKLAR, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Kayitlar');
+        XLSX.writeFile(wb, 'nesne_takip_kayitlar.xlsx');
+    }
+
+    function arsiveTasi() {
+        if (!KAYITLAR.length) { alert('Arşivlenecek kayıt yok.'); return; }
+        ARSIV_LOG = ARSIV_LOG.concat(KAYITLAR);
+        KAYITLAR = [];
+        localStorage.setItem('nesne_takip_kayitlar', JSON.stringify(KAYITLAR));
+        localStorage.setItem('nesne_takip_arsiv', JSON.stringify(ARSIV_LOG));
+        listeyiCiz();
+        arsiviCiz();
+        excelGonderButonGuncelle();
+        guncelleSayac();
+    }
+
+    function excelGonderButonGuncelle() {
+        const btn = document.getElementById('btnExcelGonder');
+        if (btn) {
+            btn.disabled = ARSIV_LOG.length < 5;
+            btn.title = ARSIV_LOG.length >= 5 ? 'Excel listesini indirir ve WhatsApp Web açar' : 'Arşivde en az 5 kayıt olunca aktif olur (şu an: ' + ARSIV_LOG.length + ')';
+        }
+    }
+
+    function hekListesiKaydet() {
+        const ta = document.getElementById('hekListesi');
+        if (!ta) return;
+        const satirlar = (ta.value || '').split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+        HEKDEN_GELENLER = satirlar;
+        localStorage.setItem('nesne_takip_hekden_gelenler', JSON.stringify(HEKDEN_GELENLER));
+    }
+
+    function kaydiSil(index) {
+        var sifre = prompt('Kaydı silmek için şifreyi girin:');
+        if (sifre === null) return;
+        if (sifre !== '505700') {
+            alert('Yanlış şifre!');
+            return;
+        }
+        if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
+        KAYITLAR.splice(index, 1);
+        localStorage.setItem('nesne_takip_kayitlar', JSON.stringify(KAYITLAR));
+        listeyiCiz();
+        guncelleSayac();
+        plakaDegisti();
+        listeGuncelleYoneticiPaneli();
+    }
+
+    function listeGuncelleYoneticiPaneli() {
+        var listeAlani = document.getElementById('kaydedilenCihazlarListesi');
+        if (!listeAlani) return;
+        if (!KAYITLAR || !KAYITLAR.length) {
+            listeAlani.innerHTML = '<p class="helper">Henüz kaydedilmiş cihaz yok.</p>';
+            return;
+        }
+        var html = '<table class="table-zebra"><thead><tr>';
+        html += '<th>S.N.</th><th>PLAKA</th><th>CİNSİ</th><th>MARKA</th><th>MODEL YILI</th><th>DURUMU</th><th>RESMİ/SİVİL</th><th>CİHAZ TÜRÜ</th><th>SİL</th>';
+        html += '</tr></thead><tbody>';
+        for (var i = 0; i < KAYITLAR.length; i++) {
+            var k = KAYITLAR[i];
+            html += '<tr><td>' + (k.sNo || '') + '</td><td>' + (k.plaka || '') + '</td><td>' + (k.cinsi || '') + '</td><td>' + (k.marka || '') + '</td><td>' + (k.modelYili || '') + '</td><td>' + (k.durumu || '') + '</td><td>' + (k.resmiSivil || '') + '</td><td>' + (k.cihazTuru || '') + '</td><td><button type="button" class="btn btn-light" style="color:#dc2626" onclick="kaydiSil(' + i + ')">Sil</button></td></tr>';
+        }
+        html += '</tbody></table>';
+        listeAlani.innerHTML = html;
+    }
+
+    function yoneticiPaneliAc() {
+        var overlay = document.getElementById('yoneticiPaneliOverlay');
+        var ta = document.getElementById('yoneticiNumaralar');
+        if (ta) ta.value = (localStorage.getItem('nesne_takip_yonetici_numaralar') || '').replace(/\|/g, '\n');
+        var hekTa = document.getElementById('hekListesi');
+        if (hekTa) hekTa.value = (HEKDEN_GELENLER || []).join('\n');
+        var dsi = document.getElementById('durumSimImei');
+        if (dsi) {
+            var sn = Object.keys(SIM_IMEI).length;
+            dsi.textContent = sn > 0 ? sn + ' kayıt (sabit — her açılışta yüklü)' : 'Dosya seçilmedi';
+            dsi.className = 'status-badge ' + (sn > 0 ? 'loaded' : 'empty');
+        }
+        listeGuncelleYoneticiPaneli();
+        if (overlay) overlay.classList.add('acik');
+    }
+    function yoneticiPaneliKapat() {
+        const overlay = document.getElementById('yoneticiPaneliOverlay');
+        if (overlay) overlay.classList.remove('acik');
+    }
+
+    var YONETICI_SIFRE = '505700';
+    function yoneticiVerileriSifirla() {
+        var sifre = prompt('Tüm verileri sıfırlamak için şifreyi girin:');
+        if (sifre === null) return;
+        if (sifre !== YONETICI_SIFRE) {
+            alert('Şifre yanlış. Veriler sıfırlanmadı.');
+            return;
+        }
+        if (!confirm("Tüm kayıtları, listeleri ve ayarları silmek istediğinize emin misiniz? Bu işlem geri alınamaz!")) return;
+        var keys = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('nesne_takip_') === 0) keys.push(k);
+        }
+        keys.forEach(function(k) { localStorage.removeItem(k); });
+        PLAKA_VERI = {};
+        PLAKA_NTP = {};
+        SIM_IMEI = {};
+        HEKDEN_GELENLER = [];
+        CIHAZ_TURU_SAYAC = 0;
+        KAYITLAR = [];
+        ARSIV_LOG = [];
+        siraNo = 0;
+        var elListe = document.getElementById('listeExcel');
+        if (elListe) elListe.value = '';
+        var elCihaz = document.getElementById('excelCihazTuru');
+        if (elCihaz) elCihaz.value = '';
+        var elSim = document.getElementById('excelSimImei');
+        if (elSim) elSim.value = '';
+        var ld = document.getElementById('listeDurum');
+        if (ld) { ld.textContent = 'Dosya seçilmedi'; ld.className = 'status-badge empty'; }
+        var dc = document.getElementById('durumCihazTuru');
+        if (dc) { dc.textContent = 'Dosya seçilmedi'; dc.className = 'status-badge empty'; }
+        var dsi = document.getElementById('durumSimImei');
+        if (dsi) { dsi.textContent = 'Dosya seçilmedi'; dsi.className = 'status-badge empty'; }
+        var ta = document.getElementById('yoneticiNumaralar');
+        if (ta) ta.value = '';
+        var hekTa = document.getElementById('hekListesi');
+        if (hekTa) hekTa.value = '';
+        listeyiCiz();
+        arsiviCiz();
+        excelGonderButonGuncelle();
+        guncelleSayac();
+        yoneticiPaneliKapat();
+        alert('Tüm veriler sıfırlandı.');
+        listeGuncelleYoneticiPaneli(); // Yönetici panelini güncelle
+    }
+    function yoneticiNumaralariKaydet() {
+        const ta = document.getElementById('yoneticiNumaralar');
+        if (!ta) return;
+        const satirlar = (ta.value || '').split(/\r?\n/).map(function(s) { return s.replace(/\D/g, '').trim(); }).filter(function(s) { return s.length >= 10; });
+        localStorage.setItem('nesne_takip_yonetici_numaralar', satirlar.join('\n'));
+    }
+    function getYoneticiNumaralari() {
+        const raw = localStorage.getItem('nesne_takip_yonetici_numaralar') || '';
+        return raw.split(/\r?\n/).map(function(s) { return s.replace(/\D/g, '').trim(); }).filter(function(s) { return s.length >= 10; });
+    }
+
+    function excelSayfaBicimle(ws) {
+        if (!ws || !ws['!ref']) return;
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        const colCount = range.e.c - range.s.c + 1;
+        const rowCount = range.e.r - range.s.r + 1;
+        const wchList = [];
+        for (let c = 0; c < colCount; c++) {
+            let maxLen = 10;
+            for (let r = 0; r <= rowCount; r++) {
+                const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
+                const cell = ws[cellRef];
+                const val = cell ? (cell.v != null ? String(cell.v) : '') : '';
+                if (val.length > maxLen) maxLen = Math.min(val.length + 1, 50);
+            }
+            wchList.push({ wch: maxLen });
+        }
+        ws['!cols'] = wchList;
+        const rowHeights = [];
+        for (let r = 0; r <= rowCount; r++) rowHeights.push({ hpt: 18 });
+        ws['!rows'] = rowHeights;
+        var borderStyle = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+        for (var r = range.s.r; r <= range.e.r; r++) {
+            for (var c = range.s.c; c <= range.e.c; c++) {
+                var ref = XLSX.utils.encode_cell({ r: r, c: c });
+                if (!ws[ref]) ws[ref] = { v: '' };
+                if (!ws[ref].s) ws[ref].s = {};
+                ws[ref].s.border = borderStyle;
+            }
+        }
+    }
+
+    // Birim arama penceresi
+    function birimAramaAc() {
+        const input = document.getElementById('birimArama');
+        if (!input) return;
+        const aranan = (input.value || '').trim();
+        if (!aranan) {
+            alert('Lütfen birim / kullanıldığı yer veya cihaz türü (NTP türü) girin.');
+            return;
+        }
+        const termNorm = aranan.toLocaleUpperCase('tr-TR');
+        const kayitlar = [];
+
+        // Cihaz listesini CİHAZ TÜRÜ dosyasındaki plakalar üzerinden kur,
+        // birim/kullanıldığı yer bilgisini ise ANA LİSTE'den (PLAKA_VERI) çapraz sorgu ile çek
+        Object.keys(PLAKA_NTP).forEach(function(plakaKey) {
+            const v = PLAKA_VERI[plakaKey] || {};
+            const birimHam = v.kullanildigiYer || '';
+            const birim = String(birimHam).toLocaleUpperCase('tr-TR');
+            const cihazTuru = ntpBul(plakaKey) || '';
+            const cihazTuruNorm = String(cihazTuru).toLocaleUpperCase('tr-TR');
+            const birimEslesti = birim && birim.indexOf(termNorm) !== -1;
+            const cihazTuruEslesti = cihazTuruNorm && cihazTuruNorm.indexOf(termNorm) !== -1;
+            if (birimEslesti || cihazTuruEslesti) {
+                kayitlar.push({
+                    plaka: plakaKey,
+                    kullanildigiYer: birimHam,
+                    cinsi: v.cinsi || '',
+                    marka: v.marka || '',
+                    modelYili: v.modelYili || '',
+                    durumu: v.durumu || '',
+                    resmiSivil: v.resmiSivil || '',
+                    cihazTuru: cihazTuru
+                });
+            }
+        });
+        const baslikEl = document.getElementById('birimAramaBaslik');
+        const sonucEl = document.getElementById('birimAramaSonuc');
+        if (!sonucEl) return;
+
+        if (baslikEl) {
+            const upperName = aranan.toLocaleUpperCase('tr-TR');
+            // Cihaz türü (NTP TÜRÜ: ASELSAN, ATOSİS, DİĞER vb.) bazında sayım
+            const turSayac = {};
+            kayitlar.forEach(function (k) {
+                const t = String(k.cihazTuru || '').trim();
+                if (!t) return;
+                const key = t.toLocaleUpperCase('tr-TR');
+                turSayac[key] = (turSayac[key] || 0) + 1;
+            });
+            const turParca = Object.keys(turSayac).map(function (t) {
+                return turSayac[t] + ' ' + t;
+            }).join(', ');
+
+            let text = '"' + upperName + '" İÇİN BULUNAN CİHAZ SAYISI: ' + kayitlar.length;
+            if (turParca) {
+                text += ' (' + turParca + ')';
+            }
+            baslikEl.textContent = text;
+        }
+        SON_BIRIM_ARAMA_KAYITLAR = kayitlar;
+        if (!kayitlar.length) {
+            sonucEl.innerHTML = '<p class="helper">Bu birim veya cihaz türü için kayıtlı cihaz bulunamadı.</p>';
+        } else {
+            let html = '<table class="table-zebra"><thead><tr><th>BİRİM</th><th>PLAKA</th><th>CİNSİ</th><th>MARKA</th><th>MODEL</th><th>DURUM</th><th>RESMİ/SİVİL</th><th>CİHAZ TÜRÜ</th></tr></thead><tbody>';
+            kayitlar.forEach(function(k, idx) {
+                html += '<tr class="birim-satir-tikla" onclick="birimKayitKartGoster(' + idx + ')" title="Detay için tıklayın">' +
+                    '<td>' + (k.kullanildigiYer || '') + '</td>' +
+                    '<td>' + (k.plaka || '') + '</td>' +
+                    '<td>' + (k.cinsi || '') + '</td>' +
+                    '<td>' + (k.marka || '') + '</td>' +
+                    '<td>' + (k.modelYili || '') + '</td>' +
+                    '<td>' + (k.durumu || '') + '</td>' +
+                    '<td>' + (k.resmiSivil || '') + '</td>' +
+                    '<td>' + (k.cihazTuru || '') + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            sonucEl.innerHTML = html;
+        }
+        const overlay = document.getElementById('birimAramaOverlay');
+        if (overlay) overlay.classList.add('acik');
+    }
+
+    function birimKayitKartGoster(index) {
+        var k = SON_BIRIM_ARAMA_KAYITLAR[index];
+        if (!k) return;
+        var el = document.getElementById('birimKayitKartIcerik');
+        if (!el) return;
+        el.innerHTML = '<p><strong>Kullanıldığı Yer:</strong> ' + (k.kullanildigiYer || '') + '</p>' +
+            '<p><strong>Plaka:</strong> ' + (k.plaka || '') + '</p>' +
+            '<p><strong>Cinsi:</strong> ' + (k.cinsi || '') + '</p>' +
+            '<p><strong>Marka:</strong> ' + (k.marka || '') + '</p>' +
+            '<p><strong>Model Yılı:</strong> ' + (k.modelYili || '') + '</p>' +
+            '<p><strong>Durumu:</strong> ' + (k.durumu || '') + '</p>' +
+            '<p><strong>Resmi/Sivil:</strong> ' + (k.resmiSivil || '') + '</p>' +
+            '<p><strong>Cihaz Türü:</strong> ' + (k.cihazTuru || '') + '</p>';
+        var overlay = document.getElementById('birimKayitKartOverlay');
+        if (overlay) overlay.classList.add('acik');
+    }
+
+    function birimKayitKartKapat() {
+        var overlay = document.getElementById('birimKayitKartOverlay');
+        if (overlay) overlay.classList.remove('acik');
+    }
+
+    function birimAramaKapat() {
+        const overlay = document.getElementById('birimAramaOverlay');
+        if (overlay) overlay.classList.remove('acik');
+    }
+
+    function mevcutKayitlariGoster() {
+        var win = window.open('', '_blank');
+        if (!win) { alert('Pencere açılamadı. Pop-up izni verin.'); return; }
+        var css = 'body{font-family:Segoe UI,sans-serif;margin:0;padding:16px;background:#f3f4f6;color:#111827;}';
+        css += '.pdf-header{position:fixed;top:0;left:0;right:0;height:48px;background:#111827;color:#f9fafb;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:100;}';
+        css += '.pdf-close{border:none;background:transparent;color:#9ca3af;font-size:22px;cursor:pointer;}';
+        css += 'table{width:100%;border-collapse:collapse;margin-top:56px;font-size:12px;background:#fff;}';
+        css += 'th,td{border:1px solid #e5e7eb;padding:8px;}';
+        css += 'th{background:#1e3a8a;color:#e5edff;}';
+        css += 'tbody tr:nth-child(odd){background:#ffffff;}';
+        css += 'tbody tr:nth-child(even){background:#f3f4f6;}';
+        var html = '<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Mevcut Kayıtlar</title><style>' + css + '</style></head><body>';
+        html += '<div class="pdf-header"><h1>Mevcut Kayıtlar</h1><button type="button" class="pdf-close" onclick="window.close()" title="Kapat">✕</button></div>';
+        if (!KAYITLAR.length) {
+            html += '<p style="margin-top:60px;">Henüz kayıt yok.</p>';
+        } else {
+            html += '<table><thead><tr>';
+            for (var h = 0; h < EXPORT_BASLIKLAR.length; h++) html += '<th>' + EXPORT_BASLIKLAR[h] + '</th>';
+            html += '</tr></thead><tbody>';
+            for (var i = 0; i < KAYITLAR.length; i++) {
+                var k = KAYITLAR[i];
+                html += '<tr><td>' + (k.sNo || '') + '</td><td>' + (k.kullanildigiYer || '') + '</td><td>' + (k.altBirim || '') + '</td><td>' + (k.sivilPlaka || '') + '</td><td>' + (k.cinsi || '') + '</td><td>' + (k.marka || '') + '</td><td>' + (k.modelYili || '') + '</td><td>' + (k.durumu || '') + '</td><td>' + (k.resmiSivil || '') + '</td><td>' + (k.plaka || '') + '</td><td>' + (k.cihazTuru || '') + '</td><td>' + (k.ekipKodu || '') + '</td><td>' + (k.simNo || '') + '</td><td>' + (k.imeiNo || '') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+        }
+        html += '</body></html>';
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+    }
+
+    function mevcutKayitlarKapat() {
+        const overlay = document.getElementById('mevcutKayitlarOverlay');
+        if (overlay) overlay.classList.remove('acik');
+    }
+
+    function arsivKayitlariGoster() {
+        var win = window.open('', '_blank');
+        if (!win) { alert('Pencere açılamadı. Pop-up izni verin.'); return; }
+        var css = 'body{font-family:Segoe UI,sans-serif;margin:0;padding:16px;background:#f3f4f6;color:#111827;}';
+        css += '.pdf-header{position:fixed;top:0;left:0;right:0;height:48px;background:#111827;color:#f9fafb;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:100;}';
+        css += '.pdf-close{border:none;background:transparent;color:#9ca3af;font-size:22px;cursor:pointer;}';
+        css += 'table{width:100%;border-collapse:collapse;margin-top:56px;font-size:12px;}';
+        css += 'th,td{border:1px solid #e5e7eb;padding:8px;}';
+        css += 'th{background:#1e3a8a;color:#e5edff;}';
+        css += 'tbody tr:nth-child(odd){background:#ffffff;}';
+        css += 'tbody tr:nth-child(even){background:#f3f4f6;}';
+        var arsivBaslik = ['S. N.', 'BİRİMİ', 'ALT BİRİM', 'SİVİL PLAKA', 'PLAKA', 'CİNSİ', 'MARKA', 'MODEL', 'DURUM', 'RESMİ/SİVİL', 'CİHAZ TÜRÜ', 'EKİP KODU', 'SİM NO', 'IMEI NO'];
+        var html = '<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Arşivdeki Kayıtlar</title><style>' + css + '</style></head><body>';
+        html += '<div class="pdf-header"><h1>Arşivdeki Kayıtlar</h1><button type="button" class="pdf-close" onclick="window.close()" title="Kapat">✕</button></div>';
+        if (!ARSIV_LOG.length) {
+            html += '<p style="margin-top:60px;">Arşivde kayıt yok.</p>';
+        } else {
+            html += '<table><thead><tr>';
+            for (var h = 0; h < arsivBaslik.length; h++) html += '<th>' + arsivBaslik[h] + '</th>';
+            html += '</tr></thead><tbody>';
+            for (var i = 0; i < ARSIV_LOG.length; i++) {
+                var k = ARSIV_LOG[i];
+                html += '<tr><td>' + (k.sNo || '') + '</td><td>' + (k.kullanildigiYer || '') + '</td><td>' + (k.altBirim || '') + '</td><td>' + (k.sivilPlaka || '') + '</td><td>' + (k.plaka || '') + '</td><td>' + (k.cinsi || '') + '</td><td>' + (k.marka || '') + '</td><td>' + (k.modelYili || '') + '</td><td>' + (k.durumu || '') + '</td><td>' + (k.resmiSivil || '') + '</td><td>' + (k.cihazTuru || '') + '</td><td>' + (k.ekipKodu || '') + '</td><td>' + (k.simNo || '') + '</td><td>' + (k.imeiNo || '') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+        }
+        html += '</body></html>';
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+    }
+
+    function arsivKayitlarKapat() {
+        const overlay = document.getElementById('arsivKayitlarOverlay');
+        if (overlay) overlay.classList.remove('acik');
+    }
+
+    // Arşivi PDF önizleme olarak yeni pencerede göster
+    function arsivPdfGoster() {
+        if (!ARSIV_LOG.length) {
+            alert('Arşivde gösterilecek kayıt yok.');
+            return;
+        }
+        const win = window.open('', '_blank');
+        if (!win) {
+            alert('Pop-up engellendi. Lütfen bu site için açılır pencere izni verin.');
+            return;
+        }
+        let html = '<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>NTP Cihaz Arşivi</title>';
+        html += '<style>';
+        html += 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:20px;padding-top:56px;background:#f3f4f6;color:#111827;}';
+        html += '.pdf-header{position:fixed;top:0;left:0;right:0;height:48px;background:#111827;color:#f9fafb;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.2);}';
+        html += '.pdf-header h1{font-size:18px;margin:0;font-weight:600;}';
+        html += '.pdf-close{border:none;background:transparent;color:#9ca3af;font-size:22px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:6px;}';
+        html += '.pdf-close:hover{background:rgba(255,255,255,0.15);color:#fff;}';
+        html += 'h1{font-size:20px;margin-bottom:4px;color:#111827;}';
+        html += 'p.sub{font-size:12px;margin-top:0;margin-bottom:16px;color:#4b5563;}';
+        html += 'table{width:100%;border-collapse:collapse;font-size:11px;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(15,23,42,0.15);}';
+        html += 'th,td{border:1px solid #e5e7eb;padding:6px 8px;text-align:left;}';
+        html += 'th{background:#111827;color:#f9fafb;font-weight:600;}';
+        html += 'tr:nth-child(even){background:#f9fafb;}';
+        html += '</style></head><body>';
+        html += '<div class="pdf-header"><h1>NTP Cihaz Arşivi</h1><button type="button" class="pdf-close" onclick="window.close()" title="Kapat" aria-label="Kapat">✕</button></div>';
+        html += '<p class="sub">Arşivdeki cihaz sayısı: ' + ARSIV_LOG.length + '</p>';
+        html += '<table><thead><tr>';
+        html += '<th>#</th><th>BİRİMİ</th><th>PLAKA</th><th>EKİP KODU</th><th>MARKA</th><th>CİHAZ TÜRÜ</th><th>SİM NO</th><th>IMEI / SERİ NO</th>';
+        html += '</tr></thead><tbody>';
+        ARSIV_LOG.forEach((k, idx) => {
+            html += '<tr>' +
+                '<td>' + (idx + 1) + '</td>' +
+                '<td>' + (k.kullanildigiYer || '') + '</td>' +
+                '<td>' + (k.plaka || '') + '</td>' +
+                '<td>' + (k.ekipKodu || '') + '</td>' +
+                '<td>' + (k.marka || '') + '</td>' +
+                '<td>' + (k.cihazTuru || '') + '</td>' +
+                '<td>' + (k.simNo || '') + '</td>' +
+                '<td>' + (k.imeiNo || '') + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table>';
+        html += '</body></html>';
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+    }
+
+    // Üstte kalan cihaz sayacı
+    function guncelleSayac() {
+        const el = document.getElementById('headerCounter');
+        if (!el) return;
+        const toplam = TOPLAM_CIHAZ || 0;
+        const takilan = (KAYITLAR.length || 0) + (ARSIV_LOG.length || 0);
+        const kalan = Math.max(toplam - takilan, 0);
+        el.textContent = 'Kalan cihaz: ' + kalan;
+    }
+
+    function excelGonderWhatsApp() {
+        let kaynak = ARSIV_LOG;
+        if (ARSIV_LOG.length < 5) { alert('Arşivde en az 5 kayıt olmalı.'); return; }
+        if (typeof XLSX === 'undefined') { alert('XLSX kütüphanesi yüklenemedi.'); return; }
+        const rows = kaynak.map(k => [
+            k.plaka || '', k.kullanildigiYer || '', k.ekipKodu || '', k.simNo || '', k.imeiNo || ''
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([GONDER_BASLIKLAR, ...rows]);
+        excelSayfaBicimle(ws);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Liste');
+        const dosyaAdi = 'nesne_takip_whatsapp_' + new Date().toISOString().slice(0,10) + (testModu ? '_TEST' : '') + '.xlsx';
+        XLSX.writeFile(wb, dosyaAdi);
+        window.open('https://web.whatsapp.com', '_blank');
+        const numaralar = getYoneticiNumaralari();
+        numaralar.forEach(function(num) {
+            var n = num.replace(/^0+/, '');
+            if (n.length === 10 && n[0] === '5') n = '90' + n;
+            else if (n.length === 11 && n[0] === '0') n = '90' + n.slice(1);
+            else if (n.length < 12) n = '90' + n;
+            if (n.length >= 12) setTimeout(function() { window.open('https://wa.me/' + n, '_blank'); }, 400 + numaralar.indexOf(num) * 300);
+        });
+    }
+
+    // Sayfa açılışında sabit verileri localStorage'dan yükle (cihaz türü listesi bir kez yüklenince kalıcı)
+    function sabitVerileriYukle() {
+        try {
+            const pv = localStorage.getItem('nesne_takip_plaka_veri');
+            if (pv) {
+                const parsed = JSON.parse(pv);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    PLAKA_VERI = {};
+                    for (const k in parsed) {
+                        if (!Object.prototype.hasOwnProperty.call(parsed, k)) continue;
+                        const v = parsed[k];
+                        PLAKA_VERI[k] = {
+                            kullanildigiYer: v.kullanildigiYer || '',
+                            altBirim: v.altBirim != null ? v.altBirim : '',
+                            sivilPlaka: v.sivilPlaka != null ? v.sivilPlaka : '',
+                            cinsi: v.cinsi || '',
+                            marka: v.marka || '',
+                            modelYili: v.modelYili || '',
+                            durumu: v.durumu || '',
+                            resmiSivil: v.resmiSivil || '',
+                            cihazTuru: v.cihazTuru != null ? v.cihazTuru : '',
+                            aktifKullanilanBirim: v.aktifKullanilanBirim != null ? v.aktifKullanilanBirim : ''
+                        };
+                    }
+                }
+            }
+            var pntp = localStorage.getItem('nesne_takip_plaka_ntp');
+            if (pntp) {
+                try {
+                    var parsed = JSON.parse(pntp);
+                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                        PLAKA_NTP = {};
+                        for (var pk in parsed) {
+                            if (!Object.prototype.hasOwnProperty.call(parsed, pk)) continue;
+                            var pval = parsed[pk];
+                            PLAKA_NTP[pk] = typeof pval === 'string' ? { ntpTur: pval, kullanildigiYer: '' } : (pval && typeof pval === 'object' ? { ntpTur: pval.ntpTur || '', kullanildigiYer: pval.kullanildigiYer || '' } : { ntpTur: '', kullanildigiYer: '' });
+                        }
+                    }
+                } catch (e2) {}
+            }
+            const sc = localStorage.getItem('nesne_takip_cihaz_turu_sayac');
+            if (sc) CIHAZ_TURU_SAYAC = parseInt(sc, 10) || 0;
+            else if (Object.keys(PLAKA_NTP).length > 0) CIHAZ_TURU_SAYAC = Object.keys(PLAKA_NTP).length;
+            const simImeiRaw = localStorage.getItem('nesne_takip_sim_imei');
+            if (simImeiRaw) {
+                try {
+                    const parsed = JSON.parse(simImeiRaw);
+                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                        SIM_IMEI = {};
+                        for (const k in parsed) {
+                            if (!Object.prototype.hasOwnProperty.call(parsed, k)) continue;
+                            const v = parsed[k];
+                            if (typeof v === 'string') SIM_IMEI[k] = { imei: v, plaka: '' };
+                            else SIM_IMEI[k] = { imei: v.imei || '', plaka: v.plaka || '' };
+                        }
+                    }
+                } catch (e2) {}
+            }
+            const hekRaw = localStorage.getItem('nesne_takip_hekden_gelenler');
+            if (hekRaw) {
+                try {
+                    const arr = JSON.parse(hekRaw);
+                    if (Array.isArray(arr)) HEKDEN_GELENLER = arr;
+                } catch (e2) {}
+            }
+            const pb = localStorage.getItem('nesne_takip_plaka_birim');
+            if (pb && Object.keys(PLAKA_VERI).length === 0) {
+                const eski = JSON.parse(pb);
+                Object.keys(eski).forEach(function(p) {
+                    var v = typeof eski[p] === 'object' ? eski[p] : { kullanildigiYer: eski[p] };
+                    PLAKA_VERI[plakaNormalize(p)] = { kullanildigiYer: v.kullanildigiYer || v.birim || '', cinsi: v.cinsi || v.subeCinsi || '', marka: v.marka || '', modelYili: v.modelYili || v.modelYil || '', durumu: v.durumu || '', resmiSivil: v.resmiSivil || v.resmiSiv || '' };
+                });
+            }
+            const ky = localStorage.getItem('nesne_takip_kayitlar');
+            if (ky) KAYITLAR = JSON.parse(ky);
+            const ars = localStorage.getItem('nesne_takip_arsiv');
+            if (ars) ARSIV_LOG = JSON.parse(ars);
+            const sn = localStorage.getItem('nesne_takip_sira_no');
+            if (sn) siraNo = parseInt(sn, 10) || 0;
+            // Toplam takılacak cihaz sayısı, CİHAZ TÜRÜ listesinden (plaka + NTP türü) alınır
+            TOPLAM_CIHAZ = CIHAZ_TURU_SAYAC || Object.keys(PLAKA_NTP).length || 0;
+        } catch (e) {}
+    }
+
+    window.onload = function() {
+        try {
+            sabitVerileriYukle();
+
+            // Sivil plaka alanını da girişe aç ve resmi plaka ile senkronize et
+            var sivilInput = document.getElementById('sivilPlaka');
+            if (sivilInput) {
+                sivilInput.readOnly = false;
+                sivilInput.addEventListener('input', function () {
+                    var v = (this.value || '').trim();
+                    var plakaInp = document.getElementById('plaka');
+                    if (plakaInp) plakaInp.value = v;
+                    plakaDegisti();
+                });
+            }
+
+            var el = document.getElementById('listeDurum');
+            if (el) {
+                var n = Object.keys(PLAKA_VERI).length;
+                el.textContent = n ? n + ' kayıt (gercek.xlsx)' : '—';
+                el.className = 'status-badge ' + (n ? 'loaded' : 'empty');
+            }
+            var dc = document.getElementById('durumCihazTuru');
+            if (dc) {
+                var cn = CIHAZ_TURU_SAYAC;
+                dc.textContent = cn > 0 ? cn + ' plaka (CIHAZ TURU)' : '—';
+                dc.className = 'status-badge ' + (cn > 0 ? 'loaded' : 'empty');
+            }
+            var dsi = document.getElementById('durumSimImei');
+            if (dsi) {
+                var sn = Object.keys(SIM_IMEI).length;
+                dsi.textContent = sn > 0 ? sn + ' kayıt (Sim_imei)' : '—';
+                dsi.className = 'status-badge ' + (sn > 0 ? 'loaded' : 'empty');
+            }
+
+            veritabanlariniGuncelle();
+            excelGonderButonGuncelle();
+            listeyiCiz();
+            arsiviCiz();
+            guncelleSayac();
+
+            // Yedek: tıklamaları dinle (inline onclick bazen CSP vb. ile engellenebilir)
+            var container = document.querySelector('.app-main') || document.body;
+            if (container) {
+                container.addEventListener('click', function(ev) {
+                    var t = ev.target;
+                    while (t && t !== container) {
+                        var action = t.getAttribute ? t.getAttribute('data-action') : null;
+                        if (action === 'yonetici-panel') { yoneticiPaneliAc(); ev.preventDefault(); ev.stopPropagation(); return; }
+                        if (action === 'kaydet') { kaydet(); ev.preventDefault(); ev.stopPropagation(); return; }
+                        if (action === 'arsiv') { arsiveTasi(); ev.preventDefault(); ev.stopPropagation(); return; }
+                        if (action === 'mevcut-kayitlar') { mevcutKayitlariGoster(); ev.preventDefault(); ev.stopPropagation(); return; }
+                        // Arşivdeki Kayıtlar butonu kaldırıldı; sadece Mevcut Kayıtlar kullanılıyor
+                        if (action === 'birim-arama') { birimAramaAc(); ev.preventDefault(); ev.stopPropagation(); return; }
+                        if (action === 'excel-gonder') { if (!t.disabled) excelGonderWhatsApp(); ev.preventDefault(); ev.stopPropagation(); return; }
+                        t = t.parentElement;
+                    }
+                });
+            }
+            // Yönetici paneli overlay: dışarı tıklanınca kapat; Kapat/X için yedek
+            var overlay = document.getElementById('yoneticiPaneliOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function(ev) {
+                    if (ev.target === overlay) yoneticiPaneliKapat();
+                    var btn = ev.target.closest ? ev.target.closest('[data-action="yonetici-kapat"]') : null;
+                    if (btn) yoneticiPaneliKapat();
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Sayfa yüklenirken hata oluştu: ' + (err.message || String(err)));
+        }
+    };
+</script>
+</body>
+</html>
